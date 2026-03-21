@@ -1620,81 +1620,94 @@ setTimeout(async function() {
 }, 2000);
 
 function buildESCPOS(p) {
-  // Comandos ESC/POS para ELGIN i8 (80mm = 48 chars por linha)
-  const ESC = '\x1B', GS = '\x1D', LF = '\n';
-  const INIT       = ESC + '@';                    // Inicializa impressora
-  const BOLD_ON    = ESC + '\x45\x01';             // Negrito ligado
-  const BOLD_OFF   = ESC + '\x45\x00';             // Negrito desligado
-  const CENTER     = ESC + 'a\x01';               // Centralizar
-  const LEFT       = ESC + 'a\x00';               // Alinhar esquerda
-  const RIGHT      = ESC + 'a\x02';               // Alinhar direita
-  const DOUBLE_H   = ESC + '!\x10';               // Altura dupla
-  const DOUBLE_HW  = ESC + '!\x38';               // Altura + largura duplas
-  const NORMAL     = ESC + '!\x00';               // Tamanho normal
-  const CUT        = GS  + 'V\x42\x05';           // Cortar papel
-  const LINE_W     = 48;                           // 80mm = 48 colunas
+  // Monta como array de bytes para evitar problemas de encoding
+  const bytes = [];
+  const W = 48; // 80mm = 48 colunas modo normal / 24 modo duplo
 
-  function pad(left, right, width) {
-    const spaces = width - left.length - right.length;
-    return left + (spaces > 0 ? ' '.repeat(spaces) : ' ') + right;
+  function b(...vals) { vals.forEach(v => bytes.push(v)); }
+  function s(str) {
+    // Remove acentos para compatibilidade máxima
+    const clean = str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    for (let i = 0; i < clean.length; i++) bytes.push(clean.charCodeAt(i) & 0xFF);
   }
-  function divider(char, len) { return (char||'-').repeat(len||LINE_W) + LF; }
+  function ln(str) { s(str || ''); b(0x0A); }
+  function div(c, n) { ln((c||'-').repeat(n||W)); }
+  function padLine(left, right, width) {
+    const sp = width - left.length - right.length;
+    s(left + (sp > 0 ? ' '.repeat(sp) : ' ') + right); b(0x0A);
+  }
 
-  let t = INIT;
+  // Comandos ESC/POS
+  const INIT      = [0x1B,0x40];           // ESC @ - Inicializa
+  const CENTER    = [0x1B,0x61,0x01];      // ESC a 1 - Centro
+  const LEFT      = [0x1B,0x61,0x00];      // ESC a 0 - Esquerda
+  const BOLD_ON   = [0x1B,0x45,0x01];      // ESC E 1 - Negrito ON
+  const BOLD_OFF  = [0x1B,0x45,0x00];      // ESC E 0 - Negrito OFF
+  const SIZE_2X   = [0x1D,0x21,0x11];      // GS ! - Duplo (W+H)
+  const SIZE_H2   = [0x1D,0x21,0x01];      // GS ! - Altura dupla
+  const SIZE_NORM = [0x1D,0x21,0x00];      // GS ! - Normal
+  const CUT       = [0x1D,0x56,0x42,0x05]; // GS V - Cortar papel
 
-  // Cabeçalho
-  t += CENTER + DOUBLE_HW + BOLD_ON + 'SONODA FOOD' + LF + BOLD_OFF + NORMAL;
-  t += CENTER + 'Restaurante Japones' + LF;
-  t += divider('=', LINE_W);
+  b(...INIT);
 
-  // Número e data
-  t += CENTER + BOLD_ON + 'PEDIDO #' + (p.num||'---') + BOLD_OFF + LF;
-  t += CENTER + fmtDate(p.timestamp) + LF;
-  t += divider('=', LINE_W);
+  // ── CABEÇALHO ──
+  b(...CENTER, ...SIZE_2X, ...BOLD_ON);
+  ln('SONODA FOOD');
+  b(...SIZE_NORM, ...BOLD_OFF);
+  ln('Restaurante Japones');
+  div('=', W);
 
-  // Dados do cliente
-  t += LEFT + BOLD_ON + 'CLIENTE: ' + BOLD_OFF + (p.nome||'---') + LF;
-  t += BOLD_ON + 'TELEFONE: ' + BOLD_OFF + (p.telefone||'---') + LF;
+  // ── PEDIDO ──
+  b(...CENTER, ...BOLD_ON, ...SIZE_H2);
+  ln('PEDIDO #' + (p.num||'---'));
+  b(...SIZE_NORM, ...BOLD_OFF);
+  ln(fmtDate(p.timestamp));
+  div('=', W);
 
+  // ── CLIENTE ──
+  b(...LEFT, ...BOLD_ON); s('CLIENTE: '); b(...BOLD_OFF); ln(p.nome||'---');
+  b(...BOLD_ON); s('TELEFONE: '); b(...BOLD_OFF); ln(p.telefone||'---');
   if (p.tipo === 'entrega') {
-    t += BOLD_ON + 'ENDERECO: ' + BOLD_OFF + (p.endereco||'') + ' ' + (p.numero||'') + LF;
-    t += BOLD_ON + 'BAIRRO: '   + BOLD_OFF + (p.bairro||'') + LF;
+    b(...BOLD_ON); s('ENDERECO: '); b(...BOLD_OFF); ln((p.endereco||'') + ' ' + (p.numero||''));
+    b(...BOLD_ON); s('BAIRRO: ');   b(...BOLD_OFF); ln(p.bairro||'');
   } else {
-    t += BOLD_ON + 'TIPO: ' + BOLD_OFF + 'Retirada no Balcao' + LF;
+    b(...BOLD_ON); s('TIPO: '); b(...BOLD_OFF); ln('Retirada no Balcao');
   }
-  t += BOLD_ON + 'PAGAMENTO: ' + BOLD_OFF + (p.pagto||'---') + LF;
-  t += divider('-', LINE_W);
+  b(...BOLD_ON); s('PAGAMENTO: '); b(...BOLD_OFF); ln(p.pagto||'---');
+  div('-', W);
 
-  // Itens
-  t += BOLD_ON + 'ITENS DO PEDIDO:' + BOLD_OFF + LF;
-  t += divider('-', LINE_W);
+  // ── ITENS ──
+  b(...BOLD_ON); ln('ITENS DO PEDIDO:'); b(...BOLD_OFF);
+  div('-', W);
   (p.items||[]).forEach(i => {
     const nome = (i.qty||1) + 'x ' + (i.name||'');
     const val  = fmt((i.price||0)*(i.qty||1));
-    t += pad(nome, val, LINE_W) + LF;
-    if (i.sabor) t += '   (' + i.sabor + ')' + LF;
+    padLine(nome, val, W);
+    if (i.sabor) ln('   (' + i.sabor + ')');
   });
-  t += divider('-', LINE_W);
+  div('-', W);
 
-  // Totais
-  t += pad('Subtotal:', fmt(p.subtotal||0), LINE_W) + LF;
-  if (p.taxa > 0) t += pad('Taxa de Entrega:', fmt(p.taxa), LINE_W) + LF;
-  t += divider('-', LINE_W);
-  t += BOLD_ON + DOUBLE_H;
-  t += pad('TOTAL:', fmt(p.total||0), LINE_W) + LF;
-  t += NORMAL + BOLD_OFF;
-  t += divider('=', LINE_W);
+  // ── TOTAIS ──
+  padLine('Subtotal:', fmt(p.subtotal||0), W);
+  if ((p.taxa||0) > 0) padLine('Taxa de Entrega:', fmt(p.taxa), W);
+  div('-', W);
+  b(...BOLD_ON, ...SIZE_H2);
+  padLine('TOTAL:', fmt(p.total||0), W);
+  b(...SIZE_NORM, ...BOLD_OFF);
+  div('=', W);
 
-  // Observação
-  if (p.obs) { t += 'OBS: ' + p.obs + LF; t += divider('-', LINE_W); }
+  // ── OBSERVAÇÃO ──
+  if (p.obs) { b(...BOLD_ON); s('OBS: '); b(...BOLD_OFF); ln(p.obs); div('-', W); }
 
-  // Rodapé
-  t += CENTER + 'Obrigado pela preferencia!' + LF;
-  t += CENTER + 'Volte sempre! :)' + LF;
-  t += LF + LF + LF;
-  t += CUT;
+  // ── RODAPÉ ──
+  b(...CENTER);
+  ln('Obrigado pela preferencia!');
+  ln('Volte sempre! :)');
+  b(0x0A, 0x0A, 0x0A);
+  b(...CUT);
 
-  return t;
+  // Converte para base64
+  return btoa(bytes.map(v => String.fromCharCode(v)).join(''));
 }
 
 // ── PRINT ORDER ────────────────────────────────────────────────
@@ -1705,8 +1718,8 @@ window.printOrder = async function(id) {
   // Tenta imprimir via QZ Tray primeiro
   if (qzConnected && qzPrinterName && typeof qz !== 'undefined') {
     try {
-      const config = qz.configs.create(qzPrinterName, { encoding: 'Cp1252', copies: 1, interpolation: 'nearest', density: 'best' });
-      const data = [{ type: 'raw', format: 'plain', data: buildESCPOS(p) }];
+      const config = qz.configs.create(qzPrinterName, { copies: 1 });
+      const data = [{ type: 'raw', format: 'base64', data: buildESCPOS(p) }];
       await qz.print(config, data);
       return;
     } catch(e) {
