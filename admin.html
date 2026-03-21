@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sonoda Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.js"></script>
 <style>
 :root{
   --red:#c0392b;--red-dark:#a93226;--green:#27ae60;--yellow:#f39c12;
@@ -271,6 +272,7 @@ tr:hover td{background:#fafafa;}
     <div class="header-logo">🍱 Sonoda <span>Admin</span></div>
     <div class="header-spacer"></div>
     <button id="bellBtn" onclick="toggleNotifPanel()">🔔<span id="bellBadge"></span></button>
+    <span id="qzStatus" style="font-size:.72rem;padding:4px 10px;border-radius:20px;background:rgba(255,255,255,.15);color:#fff;cursor:pointer;" onclick="connectQZ()" title="Clique para conectar QZ Tray">🖨️ QZ Desconectado</span>
     <span class="header-user" id="headerUser"></span>
     <button class="header-logout" onclick="doLogout()">Sair</button>
   </div>
@@ -1556,10 +1558,126 @@ function renderRelatorio() {
 
 window.printRelatorio = function() { window.print(); };
 
+// ── QZ TRAY INTEGRATION ────────────────────────────────────────
+let qzConnected = false;
+let qzPrinterName = null;
+
+function updateQZStatus(connected, printer) {
+  const el = document.getElementById('qzStatus');
+  if (!el) return;
+  if (connected) {
+    qzConnected = true;
+    qzPrinterName = printer;
+    el.innerHTML = '🖨️ ' + (printer || 'QZ Conectado');
+    el.style.background = 'rgba(39,174,96,.4)';
+    el.title = 'QZ Tray conectado - ' + printer;
+  } else {
+    qzConnected = false;
+    qzPrinterName = null;
+    el.innerHTML = '🖨️ QZ Desconectado';
+    el.style.background = 'rgba(255,255,255,.15)';
+    el.title = 'Clique para conectar QZ Tray';
+  }
+}
+
+window.connectQZ = async function() {
+  if (typeof qz === 'undefined') {
+    alert('QZ Tray não encontrado. Certifique-se que está instalado e rodando.');
+    return;
+  }
+  try {
+    if (!qz.websocket.isActive()) {
+      document.getElementById('qzStatus').innerHTML = '🖨️ Conectando...';
+      await qz.websocket.connect();
+    }
+    // Busca impressoras disponíveis
+    const printers = await qz.printers.find();
+    // Tenta encontrar ELGIN automaticamente
+    const elgin = printers.find(p => p.toLowerCase().includes('elgin') || p.toLowerCase().includes('i8') || p.toLowerCase().includes('thermal'));
+    const printer = elgin || printers[0];
+    if (printer) {
+      updateQZStatus(true, printer);
+    } else {
+      alert('Nenhuma impressora encontrada. Verifique se a ELGIN i8 está conectada.');
+    }
+  } catch(e) {
+    console.error('QZ Tray erro:', e);
+    updateQZStatus(false);
+    alert('Não foi possível conectar ao QZ Tray.\n\nVerifique:\n1. QZ Tray está aberto (ícone na barra de tarefas)\n2. A impressora ELGIN i8 está ligada e conectada\n\nErro: ' + e.message);
+  }
+};
+
+// Tenta conectar automaticamente ao carregar
+setTimeout(async function() {
+  if (typeof qz !== 'undefined') {
+    try {
+      if (!qz.websocket.isActive()) await qz.websocket.connect();
+      const printers = await qz.printers.find();
+      const elgin = printers.find(p => p.toLowerCase().includes('elgin') || p.toLowerCase().includes('i8') || p.toLowerCase().includes('thermal'));
+      updateQZStatus(true, elgin || printers[0]);
+    } catch(e) { updateQZStatus(false); }
+  }
+}, 2000);
+
+function buildESCPOS(p) {
+  const ESC = '\x1B', LF = '\n', INIT = ESC+'@', BOLD_ON = ESC+'\x45\x01', BOLD_OFF = ESC+'\x45\x00',
+    CENTER = ESC+'a\x01', LEFT = ESC+'a\x00', CUT = '\x1D\x56\x42\x05', LARGE = ESC+'!\x30', NORMAL = ESC+'!\x00';
+  let t = INIT + CENTER + LARGE + BOLD_ON + 'SONODA FOOD' + LF + NORMAL + BOLD_OFF;
+  t += '================================' + LF;
+  t += 'Pedido #' + (p.num||'---') + LF;
+  t += fmtDate(p.timestamp) + LF;
+  t += '================================' + LF;
+  t += LEFT + BOLD_ON + 'CLIENTE: ' + BOLD_OFF + (p.nome||'---') + LF;
+  t += BOLD_ON + 'TEL: ' + BOLD_OFF + (p.telefone||'---') + LF;
+  if (p.tipo === 'entrega') {
+    t += BOLD_ON + 'END: ' + BOLD_OFF + (p.endereco||'') + ' ' + (p.numero||'') + LF;
+    t += BOLD_ON + 'BAIRRO: ' + BOLD_OFF + (p.bairro||'') + LF;
+  } else {
+    t += BOLD_ON + 'TIPO: ' + BOLD_OFF + 'Retirada no balcao' + LF;
+  }
+  t += BOLD_ON + 'PAGTO: ' + BOLD_OFF + (p.pagto||'---') + LF;
+  t += '--------------------------------' + LF;
+  t += BOLD_ON + 'ITENS:' + BOLD_OFF + LF;
+  (p.items||[]).forEach(i => {
+    const nome = (i.qty||1) + 'x ' + (i.name||'') + (i.sabor?' ('+i.sabor+')':'');
+    const val = fmt((i.price||0)*(i.qty||1));
+    const spaces = 32 - nome.length - val.length;
+    t += nome + (spaces > 0 ? ' '.repeat(spaces) : ' ') + val + LF;
+  });
+  t += '--------------------------------' + LF;
+  const subtStr = 'Subtotal:', subtVal = fmt(p.subtotal||0);
+  t += subtStr + ' '.repeat(Math.max(1, 32-subtStr.length-subtVal.length)) + subtVal + LF;
+  if (p.taxa > 0) {
+    const taxStr = 'Taxa Entrega:', taxVal = fmt(p.taxa);
+    t += taxStr + ' '.repeat(Math.max(1, 32-taxStr.length-taxVal.length)) + taxVal + LF;
+  }
+  t += BOLD_ON;
+  const totStr = 'TOTAL:', totVal = fmt(p.total||0);
+  t += totStr + ' '.repeat(Math.max(1, 32-totStr.length-totVal.length)) + totVal + LF + BOLD_OFF;
+  if (p.obs) t += '--------------------------------' + LF + 'OBS: ' + p.obs + LF;
+  t += '================================' + LF + CENTER + 'Obrigado! Volte sempre!' + LF + LF + LF + CUT;
+  return t;
+}
+
 // ── PRINT ORDER ────────────────────────────────────────────────
-window.printOrder = function(id) {
+window.printOrder = async function(id) {
   const p = allPedidos[id];
   if (!p) return;
+
+  // Tenta imprimir via QZ Tray primeiro
+  if (qzConnected && qzPrinterName && typeof qz !== 'undefined') {
+    try {
+      const config = qz.configs.create(qzPrinterName, { encoding: 'CP850', copies: 1 });
+      const data = [{ type: 'raw', format: 'plain', data: buildESCPOS(p) }];
+      await qz.print(config, data);
+      return;
+    } catch(e) {
+      console.error('Erro ao imprimir via QZ:', e);
+      // Fallback para window.print()
+    }
+  }
+
+  // Fallback: impressão pelo navegador
   const items = (p.items||[]).map(i => `<div class="print-row"><span>${i.qty||1}x ${i.name}${i.sabor?' ('+i.sabor+')':''}</span><span>${fmt((i.price||0)*(i.qty||1))}</span></div>`).join('');
   document.getElementById('printArea').innerHTML = `
     <div class="print-title">🍱 SONODA FOOD</div>
