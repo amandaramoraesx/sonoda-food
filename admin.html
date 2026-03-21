@@ -2054,19 +2054,21 @@ function renderPratoRow(p) {
   const nome = dadosFb.nome || p.nome;
   const preco = dadosFb.preco !== undefined ? dadosFb.preco : p.preco;
 
-  return `<div style="background:#f8f9fa;border-radius:10px;padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-    <div style="flex:1;min-width:160px;">
-      <div style="font-weight:600;font-size:.95rem;">${nome}</div>
-      <div style="font-size:.78rem;color:#888;">${p.id}</div>
-    </div>
-    <div style="display:flex;align-items:center;gap:6px;">
-      <span style="font-size:.8rem;color:#666;">R$</span>
-      <input type="number" id="preco-${p.id}" value="${preco}" step="0.50" min="0"
-        style="width:80px;border:1.5px solid #e5e7eb;border-radius:8px;padding:6px 8px;font-size:.9rem;"
-        ${p.especial ? 'placeholder="Consulte"' : ''}>
-      <button onclick="salvarPratoPreco('${p.id}')"
-        style="background:#2980b9;color:#fff;border:none;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:.8rem;font-weight:600;">Salvar</button>
-    </div>
+  return `<div style="background:#f8f9fa;border-radius:10px;padding:14px;margin-bottom:8px;">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:160px;">
+        <input type="text" id="nome-${p.id}" value="${nome}"
+          style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:7px 10px;font-size:.92rem;font-weight:600;background:#fff;">
+        <div style="font-size:.75rem;color:#aaa;margin-top:3px;">${p.id}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:.8rem;color:#666;">R$</span>
+        <input type="number" id="preco-${p.id}" value="${preco}" step="0.50" min="0"
+          style="width:80px;border:1.5px solid #e5e7eb;border-radius:8px;padding:7px 8px;font-size:.9rem;background:#fff;"
+          ${p.especial ? 'placeholder="Consulte"' : ''}>
+        <button onclick="salvarPratoDados('${p.id}')"
+          style="background:#2980b9;color:#fff;border:none;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:.82rem;font-weight:700;">💾 Salvar</button>
+      </div>
     <button onclick="toggleEsgotadoAdmin('${p.id}')"
       style="border:none;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:.82rem;font-weight:700;
       background:${esgotado ? '#fee2e2' : '#dcfce7'};color:${esgotado ? '#c0392b' : '#166534'};">
@@ -2080,12 +2082,16 @@ function renderPratoRow(p) {
   </div>`;
 }
 
-window.salvarPratoPreco = function(id) {
-  const input = document.getElementById('preco-' + id);
-  if (!input) return;
-  const val = parseFloat(input.value) || 0;
-  set(ref(db, 'pratos/' + id + '/preco'), val)
-    .then(() => showToast('💰 Preço de ' + id + ' salvo!'))
+window.salvarPratoDados = function(id) {
+  const nomeEl = document.getElementById('nome-' + id);
+  const precoEl = document.getElementById('preco-' + id);
+  const nome = nomeEl ? nomeEl.value.trim() : null;
+  const preco = precoEl ? (parseFloat(precoEl.value) || 0) : null;
+  const updates = {};
+  if (nome) updates['pratos/' + id + '/nome'] = nome;
+  if (preco !== null) updates['pratos/' + id + '/preco'] = preco;
+  update(ref(db, '/'), updates)
+    .then(() => showToast('✅ Prato "' + (nome || id) + '" salvo!'))
     .catch(() => showToast('Erro ao salvar', 'error'));
 };
 
