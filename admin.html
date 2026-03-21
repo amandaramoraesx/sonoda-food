@@ -456,6 +456,73 @@ tr:hover td{background:#fafafa;}
       </div>
     </div>
 
+    <!-- CARDAPIO -->
+    <div class="tab-content" id="tab-cardapio">
+      <div class="section-hdr"><h2>🍽️ Cardápio</h2></div>
+
+      <!-- STATUS LOJA -->
+      <div class="card" style="margin-bottom:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div style="font-weight:700;font-size:1rem;">Status da Loja</div>
+            <div id="lojaStatusText" style="font-size:.85rem;color:#666;margin-top:2px;">Carregando...</div>
+          </div>
+          <button id="lojaToggleBtn" onclick="adminToggleLoja()" style="padding:10px 28px;border:none;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;background:#27ae60;color:#fff;transition:.2s;">🟢 Loja Aberta</button>
+        </div>
+      </div>
+
+      <!-- CONFIGS -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-title" style="margin-bottom:14px;">⚙️ Configurações Gerais</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;">
+          <div class="form-group">
+            <label>⏱️ Tempo de Entrega</label>
+            <div style="display:flex;gap:6px;">
+              <input type="text" id="cfgTempoEntrega" class="form-control" placeholder="Ex: 40-50 min">
+              <button class="btn btn-sm" style="background:var(--red);color:#fff;" onclick="salvarTempoAdmin()">✓</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>🏃 Tempo de Retirada</label>
+            <div style="display:flex;gap:6px;">
+              <input type="text" id="cfgTempoRetirada" class="form-control" placeholder="Ex: 15-20 min">
+              <button class="btn btn-sm" style="background:var(--red);color:#fff;" onclick="salvarTempoAdmin()">✓</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>💰 Pedido Mínimo (R$)</label>
+            <div style="display:flex;gap:6px;">
+              <input type="number" id="cfgPedidoMin" class="form-control" placeholder="Ex: 30" step="0.01">
+              <button class="btn btn-sm" style="background:var(--red);color:#fff;" onclick="salvarPedidoMinAdmin()">✓</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>⭐ Destaque do Dia</label>
+            <div style="display:flex;gap:6px;">
+              <input type="text" id="cfgDestaque" class="form-control" placeholder="Ex: 🍣 Gyoza em dobro hoje!">
+              <button class="btn btn-sm" style="background:var(--red);color:#fff;" onclick="salvarDestaqueAdmin()">✓</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAXAS DE ENTREGA -->
+      <div class="card" style="margin-bottom:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div class="card-title" style="margin-bottom:0;">🛵 Taxas de Entrega por Bairro</div>
+          <button class="btn btn-sm" style="background:var(--green);color:#fff;" onclick="addBairroAdmin()">+ Bairro</button>
+        </div>
+        <div id="bairrosAdminList"></div>
+        <button class="btn" style="background:var(--red);color:#fff;margin-top:12px;width:100%;" onclick="salvarBairrosAdmin()">💾 Salvar Taxas</button>
+      </div>
+
+      <!-- PRATOS -->
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px;">🍱 Gerenciar Pratos</div>
+        <div id="pratosAdminList"></div>
+      </div>
+    </div>
+
     <!-- RELATORIOS -->
     <div class="tab-content" id="tab-relatorios">
       <div class="section-hdr">
@@ -650,6 +717,7 @@ let chartBar = null;
 let chartDoughnut = null;
 let knownPedidoIds = new Set();
 let notifications = [];
+let cardapioData = { lojaFechada: false, esgotados: {}, ofertas: {}, pratos: {}, bairros: [], tempoEntrega: '', tempoRetirada: '', pedidoMinimo: 30, destaqueDia: '' };
 let entregadorMonthModal = null;
 
 const USERS = {
@@ -667,6 +735,7 @@ const NAV_ITEMS = {
     { id:'financeiro',   icon:'💵', label:'Financeiro' },
     { id:'estoque',      icon:'📦', label:'Estoque' },
     { id:'fornecedores', icon:'🏭', label:'Fornecedores' },
+    { id:'cardapio',     icon:'🍽️', label:'Cardápio' },
     { id:'relatorios',   icon:'📈', label:'Relatórios' },
   ],
   cozinha: [
@@ -734,6 +803,7 @@ window.showTab = function(id) {
   if (id === 'financeiro') { renderDespesas(); renderDRE(); }
   if (id === 'relatorios') renderRelatorio();
   if (id === 'clientes') renderClientes();
+  if (id === 'cardapio') renderCardapio();
 };
 
 // ── FIREBASE LISTENERS ─────────────────────────────────────────
@@ -762,6 +832,41 @@ function startListeners() {
   onValue(ref(db, 'financeiro/despesas'), snap => {
     allDespesas = snap.val() || {};
     if (document.getElementById('tab-financeiro').classList.contains('active')) { renderDespesas(); renderDRE(); }
+  });
+
+  // ── CARDÁPIO LISTENERS ──
+  onValue(ref(db, 'status/loja'), snap => {
+    cardapioData.lojaFechada = snap.val() === true;
+    atualizarBotaoLoja();
+    if (document.getElementById('tab-cardapio')?.classList.contains('active')) renderCardapio();
+  });
+  onValue(ref(db, 'esgotados'), snap => {
+    cardapioData.esgotados = snap.val() || {};
+    if (document.getElementById('tab-cardapio')?.classList.contains('active')) renderPratosAdmin();
+  });
+  onValue(ref(db, 'ofertas'), snap => {
+    cardapioData.ofertas = snap.val() || {};
+    if (document.getElementById('tab-cardapio')?.classList.contains('active')) renderPratosAdmin();
+  });
+  onValue(ref(db, 'pratos'), snap => {
+    cardapioData.pratos = snap.val() || {};
+    if (document.getElementById('tab-cardapio')?.classList.contains('active')) renderPratosAdmin();
+  });
+  onValue(ref(db, 'config/tempoEntrega'), snap => {
+    if (snap.val()) { cardapioData.tempoEntrega = snap.val(); document.getElementById('cfgTempoEntrega') && (document.getElementById('cfgTempoEntrega').value = snap.val()); }
+  });
+  onValue(ref(db, 'config/tempoRetirada'), snap => {
+    if (snap.val()) { cardapioData.tempoRetirada = snap.val(); document.getElementById('cfgTempoRetirada') && (document.getElementById('cfgTempoRetirada').value = snap.val()); }
+  });
+  onValue(ref(db, 'config/pedidoMinimo'), snap => {
+    if (snap.val() !== null) { cardapioData.pedidoMinimo = Number(snap.val()); document.getElementById('cfgPedidoMin') && (document.getElementById('cfgPedidoMin').value = snap.val()); }
+  });
+  onValue(ref(db, 'config/destaqueDia'), snap => {
+    if (snap.val() !== null) { cardapioData.destaqueDia = snap.val() || ''; document.getElementById('cfgDestaque') && (document.getElementById('cfgDestaque').value = snap.val() || ''); }
+  });
+  onValue(ref(db, 'bairros'), snap => {
+    const d = snap.val();
+    if (Array.isArray(d)) { cardapioData.bairros = d; if (document.getElementById('tab-cardapio')?.classList.contains('active')) renderBairrosAdmin(); }
   });
 }
 
@@ -1815,6 +1920,188 @@ window.saveManualOrder = async function() {
 
 // ── INIT DATE ─────────────────────────────────────────────────
 document.getElementById('despData').value = today();
+
+// ── CARDÁPIO ADMIN ────────────────────────────────────────────
+
+const PRATOS_LIST = [
+  { id:'combo1',      nome:'Combo Karaage + Yakimeshi', preco:39,  cat:'Combo',     especial:false },
+  { id:'yakimeshi',   nome:'Yakimeshi',                 preco:25,  cat:'Pratos',    especial:false },
+  { id:'yakissoba',   nome:'Yakissoba',                 preco:30,  cat:'Pratos',    especial:false },
+  { id:'okonomiyaki', nome:'Okonomiyaki',               preco:25,  cat:'Pratos',    especial:false },
+  { id:'temaki',      nome:'Temaki',                    preco:26,  cat:'Sushi',     especial:false },
+  { id:'uramaki',     nome:'Uramaki',                   preco:26,  cat:'Sushi',     especial:false },
+  { id:'hotroll',     nome:'Hot Roll',                  preco:32,  cat:'Sushi',     especial:false },
+  { id:'karaage',     nome:'Porção Karaage',            preco:29,  cat:'Petiscos',  especial:false },
+  { id:'gyoza',       nome:'Gyoza',                     preco:22,  cat:'Petiscos',  especial:false },
+  { id:'gyudon',      nome:'Gyudon',                    preco:0,   cat:'Especiais', especial:true  },
+  { id:'katsu',       nome:'Karê Tonkatsu',             preco:0,   cat:'Especiais', especial:true  },
+  { id:'bifum',       nome:'Bifum',                     preco:0,   cat:'Especiais', especial:true  },
+];
+
+function renderCardapio() {
+  atualizarBotaoLoja();
+  // preencher configs
+  const te = document.getElementById('cfgTempoEntrega');
+  const tr = document.getElementById('cfgTempoRetirada');
+  const pm = document.getElementById('cfgPedidoMin');
+  const dd = document.getElementById('cfgDestaque');
+  if (te && cardapioData.tempoEntrega) te.value = cardapioData.tempoEntrega;
+  if (tr && cardapioData.tempoRetirada) tr.value = cardapioData.tempoRetirada;
+  if (pm && cardapioData.pedidoMinimo) pm.value = cardapioData.pedidoMinimo;
+  if (dd) dd.value = cardapioData.destaqueDia || '';
+  renderBairrosAdmin();
+  renderPratosAdmin();
+}
+
+function atualizarBotaoLoja() {
+  const btn = document.getElementById('lojaToggleBtn');
+  const txt = document.getElementById('lojaStatusText');
+  if (!btn || !txt) return;
+  if (cardapioData.lojaFechada) {
+    btn.textContent = '🔴 Loja Fechada — Clique para Abrir';
+    btn.style.background = '#c0392b';
+    txt.textContent = 'A loja está fechada. Clientes não conseguem fazer pedidos.';
+  } else {
+    btn.textContent = '🟢 Loja Aberta — Clique para Fechar';
+    btn.style.background = '#27ae60';
+    txt.textContent = 'A loja está aberta. Pedidos estão sendo aceitos.';
+  }
+}
+
+window.adminToggleLoja = function() {
+  const nova = !cardapioData.lojaFechada;
+  set(ref(db, 'status/loja'), nova);
+  showToast(nova ? '🔴 Loja fechada!' : '🟢 Loja aberta!', nova ? 'error' : 'success');
+};
+
+window.salvarTempoAdmin = function() {
+  const e = document.getElementById('cfgTempoEntrega').value.trim();
+  const r = document.getElementById('cfgTempoRetirada').value.trim();
+  if (!e && !r) return;
+  const p = [];
+  if (e) p.push(set(ref(db, 'config/tempoEntrega'), e));
+  if (r) p.push(set(ref(db, 'config/tempoRetirada'), r));
+  Promise.all(p).then(() => showToast('⏱️ Tempos salvos!')).catch(() => showToast('Erro ao salvar', 'error'));
+};
+
+window.salvarPedidoMinAdmin = function() {
+  const val = parseFloat(document.getElementById('cfgPedidoMin').value) || 0;
+  set(ref(db, 'config/pedidoMinimo'), val).then(() => showToast('💰 Pedido mínimo salvo!')).catch(() => showToast('Erro ao salvar', 'error'));
+};
+
+window.salvarDestaqueAdmin = function() {
+  const val = document.getElementById('cfgDestaque').value.trim();
+  set(ref(db, 'config/destaqueDia'), val).then(() => showToast('⭐ Destaque salvo!')).catch(() => showToast('Erro ao salvar', 'error'));
+};
+
+function renderBairrosAdmin() {
+  const el = document.getElementById('bairrosAdminList');
+  if (!el) return;
+  const bairros = cardapioData.bairros.length ? cardapioData.bairros : [];
+  el.innerHTML = bairros.length === 0
+    ? '<p style="color:#999;font-size:.85rem;">Nenhum bairro cadastrado.</p>'
+    : bairros.map((b, i) => `
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;" id="bairro-row-${i}">
+        <input type="text" class="form-control" style="flex:2;" value="${b.nome || ''}" id="bairro-nome-${i}" placeholder="Bairro">
+        <input type="number" class="form-control" style="flex:1;" value="${b.taxa || 0}" id="bairro-taxa-${i}" placeholder="Taxa R$" step="0.50">
+        <button onclick="removeBairroAdmin(${i})" style="background:#fee2e2;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;color:#c0392b;font-weight:700;">✕</button>
+      </div>`).join('');
+}
+
+window.addBairroAdmin = function() {
+  cardapioData.bairros.push({ nome: '', taxa: 0 });
+  renderBairrosAdmin();
+};
+
+window.removeBairroAdmin = function(i) {
+  cardapioData.bairros.splice(i, 1);
+  renderBairrosAdmin();
+};
+
+window.salvarBairrosAdmin = function() {
+  const rows = document.querySelectorAll('[id^="bairro-row-"]');
+  const novo = [];
+  rows.forEach((row, i) => {
+    const nome = document.getElementById('bairro-nome-' + i)?.value.trim();
+    const taxa = parseFloat(document.getElementById('bairro-taxa-' + i)?.value) || 0;
+    if (nome) novo.push({ nome, taxa });
+  });
+  set(ref(db, 'bairros'), novo)
+    .then(() => { cardapioData.bairros = novo; showToast('🛵 Taxas salvas!'); })
+    .catch(() => showToast('Erro ao salvar', 'error'));
+};
+
+function renderPratosAdmin() {
+  const el = document.getElementById('pratosAdminList');
+  if (!el) return;
+  // Group by category
+  const cats = {};
+  PRATOS_LIST.forEach(p => {
+    if (!cats[p.cat]) cats[p.cat] = [];
+    cats[p.cat].push(p);
+  });
+  el.innerHTML = Object.entries(cats).map(([cat, pratos]) => `
+    <div style="margin-bottom:20px;">
+      <div style="font-weight:700;font-size:.85rem;color:#666;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #eee;">${cat}</div>
+      ${pratos.map(p => renderPratoRow(p)).join('')}
+    </div>`).join('');
+}
+
+function renderPratoRow(p) {
+  const esgotado = !!cardapioData.esgotados[p.id];
+  const oferta = !!cardapioData.ofertas[p.id];
+  const dadosFb = cardapioData.pratos[p.id] || {};
+  const nome = dadosFb.nome || p.nome;
+  const preco = dadosFb.preco !== undefined ? dadosFb.preco : p.preco;
+
+  return `<div style="background:#f8f9fa;border-radius:10px;padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+    <div style="flex:1;min-width:160px;">
+      <div style="font-weight:600;font-size:.95rem;">${nome}</div>
+      <div style="font-size:.78rem;color:#888;">${p.id}</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;">
+      <span style="font-size:.8rem;color:#666;">R$</span>
+      <input type="number" id="preco-${p.id}" value="${preco}" step="0.50" min="0"
+        style="width:80px;border:1.5px solid #e5e7eb;border-radius:8px;padding:6px 8px;font-size:.9rem;"
+        ${p.especial ? 'placeholder="Consulte"' : ''}>
+      <button onclick="salvarPratoPreco('${p.id}')"
+        style="background:#2980b9;color:#fff;border:none;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:.8rem;font-weight:600;">Salvar</button>
+    </div>
+    <button onclick="toggleEsgotadoAdmin('${p.id}')"
+      style="border:none;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:.82rem;font-weight:700;
+      background:${esgotado ? '#fee2e2' : '#dcfce7'};color:${esgotado ? '#c0392b' : '#166534'};">
+      ${esgotado ? '🔴 Esgotado — Clique p/ Disponibilizar' : '🟢 Disponível — Clique p/ Esgotar'}
+    </button>
+    <button onclick="toggleOfertaAdmin('${p.id}')"
+      style="border:none;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:.82rem;font-weight:700;
+      background:${oferta ? '#fef3c7' : '#f3f4f6'};color:${oferta ? '#92400e' : '#6c757d'};">
+      ${oferta ? '⭐ Oferta Ativa' : '☆ Sem Oferta'}
+    </button>
+  </div>`;
+}
+
+window.salvarPratoPreco = function(id) {
+  const input = document.getElementById('preco-' + id);
+  if (!input) return;
+  const val = parseFloat(input.value) || 0;
+  set(ref(db, 'pratos/' + id + '/preco'), val)
+    .then(() => showToast('💰 Preço de ' + id + ' salvo!'))
+    .catch(() => showToast('Erro ao salvar', 'error'));
+};
+
+window.toggleEsgotadoAdmin = function(id) {
+  const atual = !!cardapioData.esgotados[id];
+  set(ref(db, 'esgotados/' + id), !atual)
+    .then(() => showToast(!atual ? '🔴 Marcado como esgotado' : '🟢 Disponível novamente'))
+    .catch(() => showToast('Erro', 'error'));
+};
+
+window.toggleOfertaAdmin = function(id) {
+  const atual = !!cardapioData.ofertas[id];
+  set(ref(db, 'ofertas/' + id), !atual)
+    .then(() => showToast(!atual ? '⭐ Oferta ativada!' : 'Oferta removida'))
+    .catch(() => showToast('Erro', 'error'));
+};
 </script>
 </body>
 </html>
