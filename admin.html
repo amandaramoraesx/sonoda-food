@@ -1715,42 +1715,22 @@ window.printOrder = async function(id) {
   const p = allPedidos[id];
   if (!p) return;
 
-  // Tenta imprimir via QZ Tray primeiro
-  if (qzConnected && qzPrinterName && typeof qz !== 'undefined') {
-    try {
-      const config = qz.configs.create(qzPrinterName, { copies: 1 });
-      const data = [{ type: 'raw', format: 'base64', data: buildESCPOS(p) }];
-      await qz.print(config, data);
-      return;
-    } catch(e) {
-      console.error('Erro ao imprimir via QZ:', e);
-      // Fallback para window.print()
-    }
+  // Verifica se QZ Tray está conectado
+  if (!qzConnected || !qzPrinterName || typeof qz === 'undefined') {
+    const reconectar = confirm('⚠️ QZ Tray não está conectado!\n\nClique OK para tentar conectar agora, depois imprima novamente.');
+    if (reconectar) await connectQZ();
+    return;
   }
 
-  // Fallback: impressão pelo navegador
-  const items = (p.items||[]).map(i => `<div class="print-row"><span>${i.qty||1}x ${i.name}${i.sabor?' ('+i.sabor+')':''}</span><span>${fmt((i.price||0)*(i.qty||1))}</span></div>`).join('');
-  document.getElementById('printArea').innerHTML = `
-    <div class="print-title">🍱 SONODA FOOD</div>
-    <div class="print-center">Pedido #${p.num||'—'}</div>
-    <div class="print-center">${fmtDate(p.timestamp)}</div>
-    <div class="print-line"></div>
-    <div><strong>Cliente:</strong> ${p.nome}</div>
-    <div><strong>Telefone:</strong> ${p.telefone||'—'}</div>
-    ${p.tipo==='entrega'?`<div><strong>End:</strong> ${p.endereco||''} ${p.numero||''}</div><div><strong>Bairro:</strong> ${p.bairro||''}</div>`:'<div><strong>Tipo:</strong> Retirada</div>'}
-    <div><strong>Pagto:</strong> ${p.pagto||'—'}</div>
-    <div class="print-line"></div>
-    <div class="print-bold">ITENS:</div>
-    ${items}
-    <div class="print-line"></div>
-    <div class="print-row"><span>Subtotal</span><span>${fmt(p.subtotal)}</span></div>
-    ${p.taxa>0?`<div class="print-row"><span>Taxa Entrega</span><span>${fmt(p.taxa)}</span></div>`:''}
-    <div class="print-row print-bold"><span>TOTAL</span><span>${fmt(p.total)}</span></div>
-    ${p.obs?`<div class="print-line"></div><div>Obs: ${p.obs}</div>`:''}
-    <div class="print-line"></div>
-    <div class="print-center">Obrigado! Volte sempre! 😊</div>
-  `;
-  window.print();
+  try {
+    const config = qz.configs.create(qzPrinterName, { copies: 1 });
+    const data = [{ type: 'raw', format: 'base64', data: buildESCPOS(p) }];
+    await qz.print(config, data);
+  } catch(e) {
+    console.error('Erro ao imprimir via QZ:', e);
+    alert('Erro ao imprimir!\n\nVerifique se:\n1. QZ Tray está aberto (ícone na barra de tarefas)\n2. A impressora ELGIN i8 está ligada\n3. O cabo USB está conectado\n\nErro: ' + e.message);
+    updateQZStatus(false);
+  }
 };
 
 // ── MANUAL ORDER ───────────────────────────────────────────────
