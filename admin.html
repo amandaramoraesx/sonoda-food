@@ -1760,6 +1760,13 @@ function buildESCPOS(p) {
   ln('SONODA FOOD');
   b(...SIZE_NORM, ...BOLD_OFF);
   ln('Restaurante Japones');
+  ln('Rua Conde Francisco Matarazzo, 282');
+  ln('(15) 9812-88800');
+  ln('CNPJ: 57.888.734/0001-76');
+  div('-', W);
+  ln('SIMPLES CONFERENCIA DA CONTA');
+  ln('RELATORIO GERENCIAL');
+  b(...BOLD_ON); ln('*** NAO E DOCUMENTO FISCAL ***'); b(...BOLD_OFF);
   div('=', W);
 
   // ── PEDIDO ──
@@ -1774,30 +1781,38 @@ function buildESCPOS(p) {
   b(...BOLD_ON); s('TELEFONE: '); b(...BOLD_OFF); ln(p.telefone||'---');
   if (p.tipo === 'entrega') {
     b(...BOLD_ON); s('ENDERECO: '); b(...BOLD_OFF); ln((p.endereco||'') + ' ' + (p.numero||''));
-    b(...BOLD_ON); s('BAIRRO: ');   b(...BOLD_OFF); ln(p.bairro||'');
+    if (p.bairro) { b(...BOLD_ON); s('BAIRRO: '); b(...BOLD_OFF); ln(p.bairro); }
+    if (p.refLocal) { b(...BOLD_ON); s('REFERENCIA: '); b(...BOLD_OFF); ln(p.refLocal); }
   } else {
     b(...BOLD_ON); s('TIPO: '); b(...BOLD_OFF); ln('Retirada no Balcao');
   }
   b(...BOLD_ON); s('PAGAMENTO: '); b(...BOLD_OFF); ln(p.pagto||'---');
+  if (p.pagto === 'Dinheiro' && p.troco) {
+    b(...BOLD_ON); s('TROCO PARA: '); b(...BOLD_OFF); ln('R$ ' + Number(p.troco).toFixed(2).replace('.',','));
+  }
   div('-', W);
 
   // ── ITENS ──
-  b(...BOLD_ON); ln('ITENS DO PEDIDO:'); b(...BOLD_OFF);
+  b(...BOLD_ON);
+  padLine('ITEM (V.Unit)', 'Total', W);
+  b(...BOLD_OFF);
   div('-', W);
   (p.items||[]).forEach(i => {
-    const nome = (i.qty||1) + 'x ' + (i.name||'');
-    const val  = fmt((i.price||0)*(i.qty||1));
+    const preco = i.price || 0;
+    const qty   = i.qty || 1;
+    const nome  = qty + 'x ' + (i.name||'') + ' (' + fmt(preco) + ')';
+    const val   = fmt(preco * qty);
     padLine(nome, val, W);
-    if (i.sabor) ln('   (' + i.sabor + ')');
+    if (i.sabor) { s('   Sabor: ' + i.sabor); b(0x0A); }
   });
   div('-', W);
 
   // ── TOTAIS ──
   padLine('Subtotal:', fmt(p.subtotal||0), W);
-  if ((p.taxa||0) > 0) padLine('Taxa de Entrega:', fmt(p.taxa), W);
+  if ((p.taxa||0) > 0) padLine('+ Entrega:', fmt(p.taxa), W);
   div('-', W);
   b(...BOLD_ON, ...SIZE_H2);
-  padLine('TOTAL:', fmt(p.total||0), W);
+  padLine('TOTAL A PAGAR:', fmt(p.total||0), W);
   b(...SIZE_NORM, ...BOLD_OFF);
   div('=', W);
 
@@ -1806,8 +1821,12 @@ function buildESCPOS(p) {
 
   // ── RODAPÉ ──
   b(...CENTER);
-  ln('Obrigado pela preferencia!');
-  ln('Volte sempre! :)');
+  ln('Atendente: Sonodafood');
+  b(0x0A);
+  ln('* Obrigado pela Preferencia! *');
+  ln('Volte Sempre!');
+  b(0x0A);
+  ln('sonodafood.com.br');
   b(0x0A, 0x0A, 0x0A);
   b(...CUT);
 
