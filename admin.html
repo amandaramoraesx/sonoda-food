@@ -2220,7 +2220,12 @@ window.salvarPratoDados = function(id) {
   const nomeEl = document.getElementById('nome-' + id);
   const precoEl = document.getElementById('preco-' + id);
   const nome = nomeEl ? nomeEl.value.trim() : null;
-  const preco = precoEl ? (parseFloat(precoEl.value) || 0) : null;
+  const precoVal = precoEl ? parseFloat(precoEl.value) : null;
+  if (precoVal !== null && precoVal <= 0) {
+    showToast('⚠️ Informe um preço maior que zero!', 'error');
+    return;
+  }
+  const preco = precoVal;
   const updates = {};
   if (nome) updates['pratos/' + id + '/nome'] = nome;
   if (preco !== null) updates['pratos/' + id + '/preco'] = preco;
