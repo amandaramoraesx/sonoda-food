@@ -1130,6 +1130,7 @@ function buildStatusBtns(id, p) {
   if (s==='pronto') btns += `<button class="btn btn-primary btn-sm" onclick="handleSaiuEntrega('${id}')">🛵 Saiu p/ Entrega</button>`;
   if (s==='entrega') btns += `<button class="btn btn-green btn-sm" onclick="updateStatus('${id}','entregue')">📬 Entregue</button>`;
   if (s!=='entregue'&&s!=='cancelado') btns += `<button class="btn btn-gray btn-sm" onclick="updateStatus('${id}','cancelado')" style="margin-left:auto">❌ Cancelar</button>`;
+  btns += `<button class="btn btn-sm" onclick="deletePedido('${id}')" style="margin-left:${(s==='entregue'||s==='cancelado')?'auto':'4px'};background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;">🗑️ Excluir</button>`;
   return btns;
 }
 
@@ -1137,6 +1138,13 @@ window.updateStatus = async function(id, newStatus) {
   await update(ref(db, `pedidos/${id}`), { status: newStatus });
   if (newStatus === 'entregue') autoSaveCliente(allPedidos[id]);
   showToast(`Status → ${statusLabel[newStatus]}`, 'success');
+};
+
+window.deletePedido = async function(id) {
+  const p = allPedidos[id];
+  if (!confirm(`Excluir permanentemente o pedido #${p?.num||id} de ${p?.nome||''}?\n\nEsta ação não pode ser desfeita.`)) return;
+  await remove(ref(db, `pedidos/${id}`));
+  showToast('Pedido excluído.', 'success');
 };
 
 window.handleSaiuEntrega = function(id) {
@@ -1250,21 +1258,31 @@ function renderClientes() {
     return (c.nome||'').toLowerCase().includes(query) || (c.telefone||'').includes(query);
   }).sort((a,b)=>(b[1].ultimoPedido||0)-(a[1].ultimoPedido||0));
   if (!list.length) { el.innerHTML = '<div class="empty-state"><div class="icon">👥</div><p>Nenhum cliente encontrado.</p></div>'; return; }
-  el.innerHTML = list.map(([key,c]) => `<div class="card" style="cursor:pointer;margin-bottom:10px;" onclick="showClienteDetail('${key}')">
+  el.innerHTML = list.map(([key,c]) => `<div class="card" style="margin-bottom:10px;">
     <div style="display:flex;justify-content:space-between;align-items:center;">
-      <div>
+      <div style="cursor:pointer;flex:1" onclick="showClienteDetail('${key}')">
         <div style="font-weight:700">${c.nome}</div>
         <div style="font-size:.78rem;color:var(--gray)">${c.telefone||''} · ${c.bairro||''}</div>
       </div>
-      <div style="text-align:right">
-        <div style="font-weight:700;color:var(--red)">${fmt(c.totalGasto)}</div>
-        <div style="font-size:.72rem;color:var(--gray)">${c.totalPedidos||0} pedidos</div>
+      <div style="text-align:right;display:flex;align-items:center;gap:10px;">
+        <div style="cursor:pointer" onclick="showClienteDetail('${key}')">
+          <div style="font-weight:700;color:var(--red)">${fmt(c.totalGasto)}</div>
+          <div style="font-size:.72rem;color:var(--gray)">${c.totalPedidos||0} pedidos</div>
+        </div>
+        <button class="btn btn-sm" onclick="deleteCliente('${key}')" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;padding:4px 8px;">🗑️</button>
       </div>
     </div>
   </div>`).join('');
 }
 
 window.filterClientes = function() { renderClientes(); };
+
+window.deleteCliente = async function(key) {
+  const c = allClientes[key];
+  if (!confirm(`Excluir permanentemente o cliente ${c?.nome||key}?\n\nEsta ação não pode ser desfeita.`)) return;
+  await remove(ref(db, `clientes/${key}`));
+  showToast('Cliente excluído.', 'success');
+};
 
 window.showClienteDetail = function(key) {
   const c = allClientes[key];
