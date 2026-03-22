@@ -1150,7 +1150,7 @@ window.deletePedido = async function(id) {
 window.handleSaiuEntrega = function(id) {
   const p = allPedidos[id];
   update(ref(db, `pedidos/${id}`), { status: 'entrega' });
-  const msg = `Eba! passando para avisar que o seu pedido saiu para entrega, em breve estar\u00e1 na sua porta.`;
+  const msg = `*Passando para avisar que o seu pedido saiu para entrega, em breve estar\u00e1 na sua porta.*`;
   const phone = (p.telefone||'').replace(/\D/g,'');
   if (phone) window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`,'_blank');
   showToast('Pedido marcado como saiu para entrega!');
