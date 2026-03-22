@@ -1773,19 +1773,20 @@ function buildESCPOS(p) {
   div('=', W);
 
   // ── CLIENTE ──
-  b(...LEFT, ...BOLD_ON); s('CLIENTE: ');   b(...BOLD_OFF); ln(p.nome||'---');
-  b(...BOLD_ON);          s('TELEFONE: ');  b(...BOLD_OFF); ln(p.telefone||'---');
+  b(...LEFT);
+  s('CLIENTE: '); b(...BOLD_ON); ln(p.nome||'---'); b(...BOLD_OFF);
+  s('TELEFONE: '); b(...BOLD_ON); ln(p.telefone||'---'); b(...BOLD_OFF);
   if (p.tipo === 'entrega') {
-    b(...BOLD_ON); s('ENDERECO: '); b(...BOLD_OFF); ln((p.endereco||'') + ' ' + (p.numero||''));
-    if (p.bairro)   { b(...BOLD_ON); s('BAIRRO: ');     b(...BOLD_OFF); ln(p.bairro); }
-    if (p.refLocal) { b(...BOLD_ON); s('REFERENCIA: '); b(...BOLD_OFF); ln(p.refLocal); }
+    s('ENDERECO: '); b(...BOLD_ON); ln((p.endereco||'') + ' ' + (p.numero||'')); b(...BOLD_OFF);
+    if (p.bairro)   { s('BAIRRO: ');     b(...BOLD_ON); ln(p.bairro);    b(...BOLD_OFF); }
+    if (p.refLocal) { s('REFERENCIA: '); b(...BOLD_ON); ln(p.refLocal);  b(...BOLD_OFF); }
   } else {
-    b(...BOLD_ON); s('TIPO: '); b(...BOLD_OFF); ln('Retirada no Balcao');
+    s('TIPO: '); b(...BOLD_ON); ln('Retirada no Balcao'); b(...BOLD_OFF);
   }
-  b(...BOLD_ON); s('PAGAMENTO: '); b(...BOLD_OFF); ln(p.pagto||'---');
+  s('PAGAMENTO: '); b(...BOLD_ON); ln(p.pagto||'---'); b(...BOLD_OFF);
   if (p.pagto === 'Dinheiro' && p.troco > 0) {
-    b(...BOLD_ON); s('TROCO PARA: '); b(...BOLD_OFF);
-    ln('R$ ' + Number(p.troco).toFixed(2).replace('.',','));
+    s('TROCO PARA: '); b(...BOLD_ON);
+    ln('R$ ' + Number(p.troco).toFixed(2).replace('.',',')); b(...BOLD_OFF);
   }
   div('-', W);
 
@@ -1797,7 +1798,7 @@ function buildESCPOS(p) {
     const qty   = i.qty || 1;
     const nome  = qty + 'x ' + (i.name||'');
     const val   = 'R$' + (preco * qty).toFixed(2).replace('.',',');
-    padLine(nome, val, W);
+    b(...BOLD_ON); padLine(nome, val, W); b(...BOLD_OFF);
     if (i.sabor) { s('   Sabor: ' + i.sabor); b(0x0A); }
   });
   div('-', W);
@@ -1812,7 +1813,7 @@ function buildESCPOS(p) {
   div('=', W);
 
   // ── OBSERVAÇÃO ──
-  if (p.obs) { b(...BOLD_ON); s('OBS: '); b(...BOLD_OFF); ln(p.obs); div('-', W); }
+  if (p.obs) { s('OBS: '); b(...BOLD_ON); ln(p.obs); b(...BOLD_OFF); div('-', W); }
 
   // ── RODAPÉ ──
   b(...CENTER);
