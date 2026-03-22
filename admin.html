@@ -1163,13 +1163,38 @@ window.aceitarPedido = async function(id) {
   await update(ref(db, `pedidos/${id}`), { status: 'preparo' });
   showToast(`✅ Pedido #${p.num||''} aceito!`, 'success');
   printOrder(id);
-  // Avisar cliente via WhatsApp
+  // Avisar cliente via WhatsApp com resumo do pedido
   const phone = (p.telefone||'').replace(/\D/g,'');
   if (phone) {
-    const tipoMsg = p.tipo === 'retirada'
-      ? `Pode vir buscar em breve! 🏪`
-      : `Em breve nosso entregador estará a caminho! 🛵`;
-    const msg = `✅ Olá, ${p.nome}! Seu pedido *#${p.num||''}* foi *confirmado* pela Sonoda Food! 🍱\n\nJá estamos preparando tudo com carinho para você.\n${tipoMsg}\n\nQualquer dúvida é só chamar aqui. Obrigada pela preferência! 😊`;
+    const SEP = '━━━━━━━━━━━━━━━━━━━━';
+    let msg = `✅ *Pedido confirmado pela Sonoda Food!* 🍱\n`;
+    msg += `Olá, *${p.nome}*! Seu pedido foi aceito e já estamos preparando tudo com carinho.\n`;
+    msg += `\n${SEP}\n`;
+    msg += `*PEDIDO #${p.num||''}*\n`;
+    msg += `${SEP}\n\n`;
+    // Itens
+    msg += `*ITENS DO PEDIDO*\n\n`;
+    (p.items||[]).forEach(i => {
+      const sabor = i.sabor ? ` (${i.sabor})` : '';
+      msg += `${i.qty||1}x ${i.name}${sabor}\n`;
+      msg += `   R$ ${((i.price||0)*(i.qty||1)).toFixed(2).replace('.',',')}\n`;
+    });
+    msg += `\n`;
+    // Totais
+    if (p.tipo === 'entrega') {
+      msg += `Subtotal: R$ ${(p.subtotal||0).toFixed(2).replace('.',',')}\n`;
+      msg += `Entrega: R$ ${(p.taxa||0).toFixed(2).replace('.',',')}\n`;
+    }
+    msg += `\n*TOTAL: R$ ${(p.total||0).toFixed(2).replace('.',',')}*`;
+    if (p.obs) msg += `\n\n*Obs:* ${p.obs}`;
+    msg += `\n\n${SEP}\n`;
+    // Endereço / tipo
+    if (p.tipo === 'retirada') {
+      msg += `🏪 *Retirada no local*\nPode vir buscar em breve!`;
+    } else {
+      msg += `🛵 *Entrega em:* ${p.endereco||''}, ${p.numero||''} - ${p.bairro||''}\nEm breve nosso entregador estará a caminho!`;
+    }
+    msg += `\n\nQualquer dúvida é só chamar aqui. Obrigada pela preferência! 😊`;
     window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, '_blank');
   }
 };
