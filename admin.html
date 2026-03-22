@@ -315,7 +315,7 @@ tr:hover td{background:#fafafa;}
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
           <label class="toggle-wrap">
             <label class="toggle"><input type="checkbox" id="toggleAutoPrint" onchange="toggleAutoPrint()"><span class="toggle-slider"></span></label>
-            Auto-imprimir
+            Auto-aceitar pedidos
           </label>
           <button class="btn btn-primary" onclick="openNewOrderModal()">+ Pedido Manual</button>
         </div>
@@ -888,7 +888,7 @@ function detectNewOrders(prevKeys) {
         showToast(`🆕 Novo pedido #${p.num || ''} — ${p.nome}`, 'info');
         addNotification(`Novo pedido #${p.num || ''} de ${p.nome}`, '📦');
         playNotifSound();
-        if (autoPrint) printOrder(k);
+        if (autoPrint) aceitarPedido(k);
       }
     }
     // Detect status change to pronto for entregador bell
@@ -1125,7 +1125,7 @@ function orderCardHtml(id, p, role) {
 function buildStatusBtns(id, p) {
   const s = p.status;
   let btns = '';
-  if (s==='novo') btns += `<button class="btn btn-yellow btn-sm" onclick="updateStatus('${id}','preparo')">🍳 Em Preparo</button>`;
+  if (s==='novo') btns += `<button class="btn btn-green btn-sm" onclick="aceitarPedido('${id}')" style="font-weight:700;font-size:.95rem;padding:8px 16px;">✅ Aceitar e Imprimir</button>`;
   if (s==='preparo') btns += `<button class="btn btn-blue btn-sm" onclick="updateStatus('${id}','pronto')">✅ Pronto</button>`;
   if (s==='pronto') btns += `<button class="btn btn-primary btn-sm" onclick="handleSaiuEntrega('${id}')">🛵 Saiu p/ Entrega</button>`;
   if (s==='entrega') btns += `<button class="btn btn-green btn-sm" onclick="updateStatus('${id}','entregue')">📬 Entregue</button>`;
@@ -1154,6 +1154,24 @@ window.handleSaiuEntrega = function(id) {
   const phone = (p.telefone||'').replace(/\D/g,'');
   if (phone) window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`,'_blank');
   showToast('Pedido marcado como saiu para entrega!');
+};
+
+// ── ACEITAR PEDIDO ─────────────────────────────────────────────
+window.aceitarPedido = async function(id) {
+  const p = allPedidos[id];
+  if (!p) return;
+  await update(ref(db, `pedidos/${id}`), { status: 'preparo' });
+  showToast(`✅ Pedido #${p.num||''} aceito!`, 'success');
+  printOrder(id);
+  // Avisar cliente via WhatsApp
+  const phone = (p.telefone||'').replace(/\D/g,'');
+  if (phone) {
+    const tipoMsg = p.tipo === 'retirada'
+      ? `Pode vir buscar em breve! 🏪`
+      : `Em breve nosso entregador estará a caminho! 🛵`;
+    const msg = `✅ Olá, ${p.nome}! Seu pedido *#${p.num||''}* foi *confirmado* pela Sonoda Food! 🍱\n\nJá estamos preparando tudo com carinho para você.\n${tipoMsg}\n\nQualquer dúvida é só chamar aqui. Obrigada pela preferência! 😊`;
+    window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+  }
 };
 
 // ── AUTO PRINT ─────────────────────────────────────────────────
