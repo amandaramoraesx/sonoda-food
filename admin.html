@@ -357,6 +357,46 @@ tr:hover td{background:#fafafa;}
       </div>
     </div>
 
+    <!-- MEU PAINEL (ENTREGADOR) -->
+    <div class="tab-content" id="tab-meupainel">
+      <div class="section-hdr"><h2>💰 Meu Painel</h2></div>
+
+      <!-- HOJE -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title" style="margin-bottom:14px;font-size:1rem;">📅 Hoje</div>
+        <div class="stat-cards" style="grid-template-columns:1fr 1fr 1fr;">
+          <div class="stat-card green"><div class="stat-val" id="mp-ent-hoje">0</div><div class="stat-lbl">Entregas</div></div>
+          <div class="stat-card blue"><div class="stat-val" id="mp-taxa-hoje">R$0</div><div class="stat-lbl">Taxas</div></div>
+          <div class="stat-card" style="background:#fef9c3;"><div class="stat-val" id="mp-total-hoje" style="color:#b45309;">R$0</div><div class="stat-lbl">Total</div></div>
+        </div>
+        <div style="margin-top:10px;padding:10px;background:#f0fdf4;border-radius:8px;font-size:.85rem;color:#166534;">
+          🏪 Diária do restaurante: <strong>R$ 50,00</strong>
+        </div>
+      </div>
+
+      <!-- SEMANA -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title" style="margin-bottom:14px;font-size:1rem;">📆 Esta Semana</div>
+        <div class="stat-cards" style="grid-template-columns:1fr 1fr 1fr 1fr;">
+          <div class="stat-card green"><div class="stat-val" id="mp-ent-semana">0</div><div class="stat-lbl">Entregas</div></div>
+          <div class="stat-card blue"><div class="stat-val" id="mp-taxa-semana">R$0</div><div class="stat-lbl">Taxas</div></div>
+          <div class="stat-card"><div class="stat-val" id="mp-diaria-semana" style="color:#7c3aed;">R$0</div><div class="stat-lbl">Diárias</div></div>
+          <div class="stat-card" style="background:#fef9c3;"><div class="stat-val" id="mp-total-semana" style="color:#b45309;">R$0</div><div class="stat-lbl">Total</div></div>
+        </div>
+      </div>
+
+      <!-- MÊS -->
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px;font-size:1rem;">🗓️ Este Mês</div>
+        <div class="stat-cards" style="grid-template-columns:1fr 1fr 1fr 1fr;">
+          <div class="stat-card green"><div class="stat-val" id="mp-ent-mes">0</div><div class="stat-lbl">Entregas</div></div>
+          <div class="stat-card blue"><div class="stat-val" id="mp-taxa-mes">R$0</div><div class="stat-lbl">Taxas</div></div>
+          <div class="stat-card"><div class="stat-val" id="mp-diaria-mes" style="color:#7c3aed;">R$0</div><div class="stat-lbl">Diárias</div></div>
+          <div class="stat-card" style="background:#fef9c3;"><div class="stat-val" id="mp-total-mes" style="color:#b45309;">R$0</div><div class="stat-lbl">Total</div></div>
+        </div>
+      </div>
+    </div>
+
     <!-- CLIENTES -->
     <div class="tab-content" id="tab-clientes">
       <div class="section-hdr"><h2>👥 Clientes</h2></div>
@@ -744,6 +784,7 @@ const NAV_ITEMS = {
   entregador: [
     { id:'cozinha',   icon:'🍳', label:'Cozinha' },
     { id:'entregas',  icon:'🛵', label:'Entregas' },
+    { id:'meupainel', icon:'💰', label:'Meu Painel' },
   ]
 };
 
@@ -804,6 +845,7 @@ window.showTab = function(id) {
   if (id === 'relatorios') renderRelatorio();
   if (id === 'clientes') renderClientes();
   if (id === 'cardapio') renderCardapio();
+  if (id === 'meupainel') renderMeuPainel();
 };
 
 // ── FIREBASE LISTENERS ─────────────────────────────────────────
@@ -874,7 +916,7 @@ function renderAll() {
   if (document.getElementById('tab-dashboard')?.classList.contains('active')) renderDashboard();
   renderPedidos();
   renderCozinha();
-  if (currentRole === 'entregador') renderEntregas();
+  if (currentRole === 'entregador') { renderEntregas(); renderMeuPainel(); }
   updateNovoBadge();
 }
 
@@ -1204,6 +1246,54 @@ function cozinhaCardHtml(id, p) {
       ${initBtn}${prontoBtn}
     </div>
   </div>`;
+}
+
+// ── MEU PAINEL (ENTREGADOR) ────────────────────────────────────
+const DIARIA = 50;
+function renderMeuPainel() {
+  const now = new Date();
+  const hoje = now.toDateString();
+  const semanaInicio = new Date(now); semanaInicio.setDate(now.getDate() - now.getDay());
+  const mesInicio = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  let entHoje=0, taxaHoje=0;
+  let entSemana=0, taxaSemana=0;
+  let entMes=0, taxaMes=0;
+  const diasSemana = new Set();
+  const diasMes = new Set();
+
+  Object.values(allPedidos).forEach(p => {
+    if (p.status !== 'entregue' || p.tipo !== 'entrega') return;
+    const d = new Date(p.timestamp||0);
+    const taxa = parseFloat(p.taxa||0);
+    const dStr = d.toDateString();
+
+    if (dStr === hoje) { entHoje++; taxaHoje += taxa; }
+    if (d >= semanaInicio) { entSemana++; taxaSemana += taxa; diasSemana.add(dStr); }
+    if (d >= mesInicio)    { entMes++;    taxaMes    += taxa; diasMes.add(dStr); }
+  });
+
+  const diariaSemana = diasSemana.size * DIARIA;
+  const diariaMes    = diasMes.size    * DIARIA;
+
+  const fmt = v => 'R$ ' + v.toFixed(2).replace('.',',');
+
+  // Hoje
+  document.getElementById('mp-ent-hoje').textContent   = entHoje;
+  document.getElementById('mp-taxa-hoje').textContent  = fmt(taxaHoje);
+  document.getElementById('mp-total-hoje').textContent = fmt(taxaHoje + DIARIA);
+
+  // Semana
+  document.getElementById('mp-ent-semana').textContent    = entSemana;
+  document.getElementById('mp-taxa-semana').textContent   = fmt(taxaSemana);
+  document.getElementById('mp-diaria-semana').textContent = fmt(diariaSemana);
+  document.getElementById('mp-total-semana').textContent  = fmt(taxaSemana + diariaSemana);
+
+  // Mês
+  document.getElementById('mp-ent-mes').textContent    = entMes;
+  document.getElementById('mp-taxa-mes').textContent   = fmt(taxaMes);
+  document.getElementById('mp-diaria-mes').textContent = fmt(diariaMes);
+  document.getElementById('mp-total-mes').textContent  = fmt(taxaMes + diariaMes);
 }
 
 // ── ENTREGAS ───────────────────────────────────────────────────
