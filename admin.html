@@ -1166,35 +1166,7 @@ window.aceitarPedido = async function(id) {
   // Avisar cliente via WhatsApp com resumo do pedido
   const phone = (p.telefone||'').replace(/\D/g,'');
   if (phone) {
-    const SEP = '____________________';
-    let msg = `Pedido confirmado!\n`;
-    msg += `Seu pedido foi aceito e ja estamos preparando tudo com carinho.\n`;
-    msg += `\n${SEP}\n`;
-    msg += `PEDIDO #${p.num||''}\n`;
-    msg += `${SEP}\n\n`;
-    // Itens
-    msg += `ITENS DO PEDIDO\n\n`;
-    (p.items||[]).forEach(i => {
-      const sabor = i.sabor ? ` (${i.sabor})` : '';
-      msg += `${i.qty||1}x ${i.name}${sabor}\n`;
-      msg += `   R$ ${((i.price||0)*(i.qty||1)).toFixed(2).replace('.',',')}\n`;
-    });
-    msg += `\n`;
-    // Totais
-    if (p.tipo === 'entrega') {
-      msg += `Subtotal: R$ ${(p.subtotal||0).toFixed(2).replace('.',',')}\n`;
-      msg += `Entrega: R$ ${(p.taxa||0).toFixed(2).replace('.',',')}\n`;
-    }
-    msg += `\nTOTAL: R$ ${(p.total||0).toFixed(2).replace('.',',')}`;
-    if (p.obs) msg += `\n\nObs: ${p.obs}`;
-    msg += `\n\n${SEP}\n`;
-    // Endereço / tipo
-    if (p.tipo === 'retirada') {
-      msg += `Retirada no local\nPode vir buscar em breve!`;
-    } else {
-      msg += `Entrega em: ${p.endereco||''}, ${p.numero||''} - ${p.bairro||''}\nEm breve nosso entregador estara a caminho!`;
-    }
-    msg += `\n\nQualquer duvida e so chamar aqui. Obrigada pela preferencia!`;
+    const msg = `Oi, o seu pedido foi confirmado e j\u00e1 estamos preparando tudo com carinho =)\nQualquer d\u00favida \u00e9 s\u00f3 chamar aqui.`;
     window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, '_blank');
   }
 };
