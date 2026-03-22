@@ -1166,7 +1166,7 @@ window.aceitarPedido = async function(id) {
   // Avisar cliente via WhatsApp com resumo do pedido
   const phone = (p.telefone||'').replace(/\D/g,'');
   if (phone) {
-    const msg = `Oi, o seu pedido foi confirmado e j\u00e1 estamos preparando tudo com carinho =)\nQualquer d\u00favida \u00e9 s\u00f3 chamar aqui.`;
+    const msg = `O seu pedido foi confirmado e j\u00e1 estamos preparando tudo com carinho.`;
     window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, '_blank');
   }
 };
