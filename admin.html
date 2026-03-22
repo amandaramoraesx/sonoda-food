@@ -1763,72 +1763,61 @@ function buildESCPOS(p) {
   ln('Rua Conde Francisco Matarazzo, 282');
   ln('(15) 9812-88800');
   ln('CNPJ: 57.888.734/0001-76');
-  div('-', W);
-  ln('SIMPLES CONFERENCIA DA CONTA');
-  ln('RELATORIO GERENCIAL');
-  b(...BOLD_ON); ln('*** NAO E DOCUMENTO FISCAL ***'); b(...BOLD_OFF);
-  b(0x0A);
-
-  // ── CLIENTE ──
-  b(...LEFT);
-  ln(p.nome || '---');
-  ln('(' + (p.telefone||'---') + ')');
-  b(0x0A);
-  if (p.tipo === 'entrega') {
-    ln('(Entregar no endereco)');
-    ln((p.endereco||'') + (p.numero ? ', ' + p.numero : ''));
-    if (p.bairro) ln(p.bairro + ', Itapetininga');
-    if (p.refLocal) ln(p.refLocal);
-  } else {
-    ln('(Retirada no Balcao)');
-  }
-  b(0x0A);
-  s('Pagamento: '); ln(p.pagto||'---');
-  if (p.pagto === 'Dinheiro' && p.troco > 0) {
-    s('Troco para: R$ '); ln(Number(p.troco).toFixed(2).replace('.',','));
-  }
-  b(0x0A);
+  div('=', W);
 
   // ── PEDIDO ──
-  b(...CENTER);
-  ln('ABERTO EM ' + fmtDate(p.timestamp));
-  ln('(Pedido N.: ' + (p.num||'---') + ')');
-  b(0x0A);
+  b(...CENTER, ...BOLD_ON, ...SIZE_H2);
+  ln('PEDIDO #' + (p.num||'---'));
+  b(...SIZE_NORM, ...BOLD_OFF);
+  ln(fmtDate(p.timestamp));
+  div('=', W);
+
+  // ── CLIENTE ──
+  b(...LEFT, ...BOLD_ON); s('CLIENTE: ');   b(...BOLD_OFF); ln(p.nome||'---');
+  b(...BOLD_ON);          s('TELEFONE: ');  b(...BOLD_OFF); ln(p.telefone||'---');
+  if (p.tipo === 'entrega') {
+    b(...BOLD_ON); s('ENDERECO: '); b(...BOLD_OFF); ln((p.endereco||'') + ' ' + (p.numero||''));
+    if (p.bairro)   { b(...BOLD_ON); s('BAIRRO: ');     b(...BOLD_OFF); ln(p.bairro); }
+    if (p.refLocal) { b(...BOLD_ON); s('REFERENCIA: '); b(...BOLD_OFF); ln(p.refLocal); }
+  } else {
+    b(...BOLD_ON); s('TIPO: '); b(...BOLD_OFF); ln('Retirada no Balcao');
+  }
+  b(...BOLD_ON); s('PAGAMENTO: '); b(...BOLD_OFF); ln(p.pagto||'---');
+  if (p.pagto === 'Dinheiro' && p.troco > 0) {
+    b(...BOLD_ON); s('TROCO PARA: '); b(...BOLD_OFF);
+    ln('R$ ' + Number(p.troco).toFixed(2).replace('.',','));
+  }
+  div('-', W);
 
   // ── ITENS ──
-  b(...LEFT, ...BOLD_ON);
-  padLine('ITEM (V.Unit)', 'Total', W);
-  b(...BOLD_OFF);
+  b(...BOLD_ON); ln('ITENS DO PEDIDO:'); b(...BOLD_OFF);
+  div('-', W);
   (p.items||[]).forEach(i => {
     const preco = i.price || 0;
     const qty   = i.qty || 1;
-    const nome  = qty + ' ' + (i.name||'') + ' (' + preco.toFixed(2).replace('.',',') + ')';
-    const val   = preco > 0 ? preco * qty : 0;
-    padLine(nome, val.toFixed(2).replace('.',','), W);
+    const nome  = qty + 'x ' + (i.name||'');
+    const val   = 'R$' + (preco * qty).toFixed(2).replace('.',',');
+    padLine(nome, val, W);
     if (i.sabor) { s('   Sabor: ' + i.sabor); b(0x0A); }
   });
   div('-', W);
 
   // ── TOTAIS ──
-  padLine('TOTAL:', (p.subtotal||0).toFixed(2).replace('.',','), W);
-  if ((p.taxa||0) > 0) padLine('+ ENTREGA:', (p.taxa).toFixed(2).replace('.',','), W);
-  b(...BOLD_ON);
-  padLine('= TOTAL A PAGAR:', (p.total||0).toFixed(2).replace('.',','), W);
-  b(...BOLD_OFF);
-  b(0x0A);
+  padLine('Subtotal:', 'R$' + (p.subtotal||0).toFixed(2).replace('.',','), W);
+  if ((p.taxa||0) > 0) padLine('Taxa de Entrega:', 'R$' + (p.taxa).toFixed(2).replace('.',','), W);
+  div('-', W);
+  b(...BOLD_ON, ...SIZE_H2);
+  padLine('TOTAL:', 'R$' + (p.total||0).toFixed(2).replace('.',','), W);
+  b(...SIZE_NORM, ...BOLD_OFF);
+  div('=', W);
 
   // ── OBSERVAÇÃO ──
-  if (p.obs) { ln('Obs: ' + p.obs); b(0x0A); }
+  if (p.obs) { b(...BOLD_ON); s('OBS: '); b(...BOLD_OFF); ln(p.obs); div('-', W); }
 
   // ── RODAPÉ ──
   b(...CENTER);
-  ln('Atendente: Sonodafood');
-  b(0x0A);
-  ln('* Obrigado pela Preferencial *');
-  ln('Volte Sempre!');
-  b(0x0A);
-  ln('sonodafood.com.br');
-  div('-', W);
+  ln('Obrigado pela preferencia!');
+  ln('Volte sempre! :)');
   b(0x0A, 0x0A, 0x0A);
   b(...CUT);
 
