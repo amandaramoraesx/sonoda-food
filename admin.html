@@ -625,9 +625,22 @@ tr:hover td{background:#fafafa;}
   <div class="modal">
     <div class="modal-header"><h3>+ Novo Pedido Manual</h3><button class="modal-close" onclick="closeModal('modalNewOrder')">×</button></div>
     <div class="modal-body">
+      <div class="form-group" style="position:relative;margin-bottom:8px;">
+        <label>Cliente</label>
+        <input type="text" id="mnNome" class="form-control" placeholder="Buscar ou digitar nome..." oninput="onClienteSearch(this.value)" autocomplete="off">
+        <div id="mnClienteDropdown" style="display:none;position:absolute;z-index:999;background:#fff;border:1px solid #e5e7eb;border-radius:8px;width:100%;max-height:190px;overflow-y:auto;box-shadow:0 4px 14px rgba(0,0,0,.13);top:calc(100% + 2px);left:0;"></div>
+      </div>
       <div class="form-row">
-        <div class="form-group"><label>Nome do Cliente</label><input type="text" id="mnNome" class="form-control"></div>
         <div class="form-group"><label>Telefone</label><input type="text" id="mnTel" class="form-control"></div>
+        <div class="form-group"><label>Pagamento</label>
+          <select id="mnPagto" class="form-control" onchange="onMnPagtoChange()">
+            <option>Dinheiro</option><option>Pix</option><option>Cartão Débito</option><option>Cartão Crédito</option><option>Fiado</option>
+          </select>
+        </div>
+      </div>
+      <div id="mnFiadoRow" style="display:none;" class="form-group">
+        <label>📅 Data prevista de pagamento</label>
+        <input type="date" id="mnFiadoData" class="form-control">
       </div>
       <div class="form-row">
         <div class="form-group"><label>Tipo</label>
@@ -635,11 +648,7 @@ tr:hover td{background:#fafafa;}
             <option value="entrega">Entrega</option><option value="retirada">Retirada</option>
           </select>
         </div>
-        <div class="form-group"><label>Pagamento</label>
-          <select id="mnPagto" class="form-control">
-            <option>Dinheiro</option><option>Pix</option><option>Cartão Débito</option><option>Cartão Crédito</option><option>Fiado</option>
-          </select>
-        </div>
+        <div class="form-group"><label>Obs.</label><input type="text" id="mnObs" class="form-control" placeholder="Observações..."></div>
       </div>
       <div id="deliveryFields">
         <div class="form-row">
@@ -648,35 +657,46 @@ tr:hover td{background:#fafafa;}
         </div>
         <div class="form-row">
           <div class="form-group"><label>Bairro</label><input type="text" id="mnBairro" class="form-control"></div>
-          <div class="form-group"><label>Ref. Local</label><input type="text" id="mnRef" class="form-control"></div>
+          <div class="form-group"><label>Taxa (R$)</label><input type="number" id="mnTaxa" class="form-control" value="0" step="0.01" oninput="renderManualItems()"></div>
         </div>
-        <div class="form-group"><label>Taxa de Entrega (R$)</label><input type="number" id="mnTaxa" class="form-control" value="0" step="0.01"></div>
       </div>
-      <div class="form-group"><label>Observações</label><textarea id="mnObs" class="form-control" rows="2"></textarea></div>
-      <hr style="margin:16px 0;">
+      <hr style="margin:12px 0;">
       <div class="card-title" style="margin-bottom:8px;">Itens do Pedido</div>
-      <div id="mnItemsList"></div>
-      <div style="background:#f9fafb;border-radius:10px;padding:12px;margin-bottom:10px;">
-        <div class="card-title" style="margin-bottom:8px;font-size:.72rem;">📋 Selecionar do Cardápio (clique para adicionar)</div>
-        <div id="mnCatalogBtns" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;"></div>
-      </div>
-      <div style="background:#f0f4ff;border-radius:10px;padding:12px;margin-bottom:10px;">
-        <div class="card-title" style="margin-bottom:8px;font-size:.72rem;">➕ Adicionar item manualmente</div>
-        <div class="form-row-3">
-          <div class="form-group"><label>Item</label><input type="text" id="mnItemName" class="form-control" placeholder="Nome do item"></div>
-          <div class="form-group"><label>Qtd</label><input type="number" id="mnItemQty" class="form-control" value="1" min="1"></div>
-          <div class="form-group"><label>Preço</label><input type="number" id="mnItemPrice" class="form-control" placeholder="0.00" step="0.01"></div>
+      <div style="display:flex;gap:6px;align-items:flex-end;margin-bottom:8px;">
+        <div class="form-group" style="flex:1;margin-bottom:0;position:relative;">
+          <label>Item do cardápio</label>
+          <input type="text" id="mnItemSearch" class="form-control" placeholder="Buscar item..." oninput="onItemSearch(this.value)" autocomplete="off">
+          <div id="mnItemDropdown" style="display:none;position:absolute;z-index:999;background:#fff;border:1px solid #e5e7eb;border-radius:8px;width:100%;max-height:190px;overflow-y:auto;box-shadow:0 4px 14px rgba(0,0,0,.13);top:calc(100% + 2px);left:0;"></div>
         </div>
-        <div class="form-group"><label>Sabor/Complemento</label><input type="text" id="mnItemSabor" class="form-control" placeholder="Opcional"></div>
-        <button class="btn btn-gray btn-sm" onclick="addManualItem()">+ Adicionar Item</button>
+        <div class="form-group" style="flex:0 0 64px;margin-bottom:0;"><label>Qtd</label><input type="number" id="mnItemQty" class="form-control" value="1" min="1"></div>
+        <div class="form-group" style="flex:0 0 82px;margin-bottom:0;"><label>R$</label><input type="number" id="mnItemPrice" class="form-control" step="0.01" placeholder="0,00"></div>
+        <button class="btn btn-primary btn-sm" style="height:38px;margin-bottom:0;padding:0 14px;" onclick="addManualItem()">+</button>
       </div>
-      <div style="margin-top:14px;text-align:right;font-size:.88rem;">
-        Subtotal: <strong id="mnSubtotal">R$0,00</strong> | Taxa: <strong id="mnTaxaVal">R$0,00</strong> | Total: <strong id="mnTotal" style="color:var(--red)">R$0,00</strong>
+      <div id="mnItemsList"></div>
+      <div style="text-align:right;padding:8px 0;border-top:1px solid #f3f4f6;">
+        Total: <strong id="mnTotal" style="color:var(--red);font-size:1.1rem;">R$0,00</strong>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-gray" onclick="closeModal('modalNewOrder')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveManualOrder()">Salvar Pedido</button>
+    </div>
+  </div>
+</div>
+
+<!-- Cliente Edit Modal -->
+<div class="modal-overlay" id="modalClienteEdit">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header"><h3>✏️ Editar Cliente</h3><button class="modal-close" onclick="closeModal('modalClienteEdit')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="ceKey">
+      <div class="form-group"><label>Nome</label><input type="text" id="ceNome" class="form-control"></div>
+      <div class="form-group"><label>Telefone</label><input type="text" id="ceTel" class="form-control"></div>
+      <div class="form-group"><label>Bairro</label><input type="text" id="ceBairro" class="form-control"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-gray" onclick="closeModal('modalClienteEdit')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveClienteEdit()">Salvar</button>
     </div>
   </div>
 </div>
@@ -1537,6 +1557,7 @@ function renderClientes() {
           <div style="font-weight:700;color:var(--red)">${fmt(c.totalGasto)}</div>
           <div style="font-size:.72rem;color:var(--gray)">${c.totalPedidos||0} pedidos</div>
         </div>
+        <button class="btn btn-sm" onclick="openClienteEditModal('${key}')" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:4px 8px;">✏️</button>
         <button class="btn btn-sm" onclick="deleteCliente('${key}')" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;padding:4px 8px;">🗑️</button>
       </div>
     </div>
@@ -1550,6 +1571,29 @@ window.deleteCliente = async function(key) {
   if (!confirm(`Excluir permanentemente o cliente ${c?.nome||key}?\n\nEsta ação não pode ser desfeita.`)) return;
   await remove(ref(db, `clientes/${key}`));
   showToast('Cliente excluído.', 'success');
+};
+
+window.openClienteEditModal = function(key) {
+  const c = allClientes[key];
+  if (!c) return;
+  document.getElementById('ceKey').value = key;
+  document.getElementById('ceNome').value = c.nome || '';
+  document.getElementById('ceTel').value = c.telefone || '';
+  document.getElementById('ceBairro').value = c.bairro || '';
+  openModal('modalClienteEdit');
+};
+
+window.saveClienteEdit = async function() {
+  const key = document.getElementById('ceKey').value;
+  const nome = document.getElementById('ceNome').value.trim();
+  if (!nome) { showToast('Informe o nome.','error'); return; }
+  await update(ref(db, `clientes/${key}`), {
+    nome,
+    telefone: document.getElementById('ceTel').value.trim(),
+    bairro: document.getElementById('ceBairro').value.trim()
+  });
+  closeModal('modalClienteEdit');
+  showToast('Cliente atualizado!', 'success');
 };
 
 window.showClienteDetail = function(key) {
@@ -2365,14 +2409,15 @@ window.printOrder = async function(id) {
 // ── MANUAL ORDER ───────────────────────────────────────────────
 window.openNewOrderModal = function() {
   manualItems = [];
-  ['mnNome','mnTel','mnEndereco','mnNumero','mnBairro','mnRef','mnObs'].forEach(id => { document.getElementById(id).value=''; });
+  ['mnNome','mnTel','mnEndereco','mnNumero','mnBairro','mnObs','mnItemSearch','mnItemPrice'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   document.getElementById('mnTipo').value='entrega';
   document.getElementById('mnPagto').value='Dinheiro';
   document.getElementById('mnTaxa').value='0';
-  document.getElementById('mnItemName').value='';
   document.getElementById('mnItemQty').value='1';
-  document.getElementById('mnItemPrice').value='';
-  document.getElementById('mnItemSabor').value='';
+  document.getElementById('mnFiadoRow').style.display='none';
+  document.getElementById('deliveryFields').style.display='block';
+  document.getElementById('mnClienteDropdown').style.display='none';
+  document.getElementById('mnItemDropdown').style.display='none';
   renderManualItems();
   // Botões rápidos do cardápio
   const catEl = document.getElementById('mnCatalogBtns');
@@ -2387,10 +2432,67 @@ window.openNewOrderModal = function() {
   openModal('modalNewOrder');
 };
 
-window.addItemFromCatalog = function(nome, preco) {
-  manualItems.push({ name: nome, qty: 1, price: preco, sabor: '' });
-  renderManualItems();
-  showToast(nome + ' adicionado!', 'success');
+window.onClienteSearch = function(val) {
+  const dd = document.getElementById('mnClienteDropdown');
+  if (!val || val.length < 1) { dd.style.display='none'; return; }
+  const q = val.toLowerCase();
+  const matches = Object.entries(allClientes).filter(([,c]) =>
+    (c.nome||'').toLowerCase().includes(q) || (c.telefone||'').includes(q)
+  ).slice(0, 6);
+  if (!matches.length) { dd.style.display='none'; return; }
+  dd.innerHTML = matches.map(([key,c]) =>
+    `<div onclick="selectCliente('${key}')" style="padding:9px 12px;cursor:pointer;border-bottom:1px solid #f3f4f6;font-size:.85rem;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">` +
+    `<strong>${c.nome}</strong> <span style="color:var(--gray);font-size:.78rem;">${c.telefone||''} · ${c.bairro||''}</span></div>`
+  ).join('');
+  dd.style.display = 'block';
+};
+
+window.selectCliente = function(key) {
+  const c = allClientes[key];
+  if (!c) return;
+  document.getElementById('mnNome').value = c.nome || '';
+  document.getElementById('mnTel').value = c.telefone || '';
+  document.getElementById('mnClienteDropdown').style.display = 'none';
+  const enderecos = Array.isArray(c.enderecos) ? c.enderecos.filter(e => e.endereco||e.bairro) : [];
+  const ult = enderecos[enderecos.length-1];
+  if (ult) {
+    document.getElementById('mnEndereco').value = ult.endereco || '';
+    document.getElementById('mnNumero').value = ult.numero || '';
+    document.getElementById('mnBairro').value = ult.bairro || '';
+  }
+};
+
+window.onItemSearch = function(val) {
+  const dd = document.getElementById('mnItemDropdown');
+  if (!val || val.length < 1) { dd.style.display='none'; return; }
+  const q = val.toLowerCase();
+  const pratos = PRATOS_LIST.map(pr => {
+    const fb = cardapioData.pratos[pr.id] || {};
+    return { nome: fb.nome||pr.nome, preco: fb.preco!==undefined ? fb.preco : pr.preco };
+  });
+  const matches = pratos.filter(p => p.nome.toLowerCase().includes(q)).slice(0, 8);
+  if (!matches.length) { dd.style.display='none'; return; }
+  dd.innerHTML = matches.map(p =>
+    `<div onclick="selectItem('${p.nome.replace(/'/g,"\\'")}',${p.preco})" style="padding:9px 12px;cursor:pointer;border-bottom:1px solid #f3f4f6;font-size:.85rem;display:flex;justify-content:space-between;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">` +
+    `<span>${p.nome}</span><span style="color:var(--red);font-weight:700;">${p.preco>0?fmt(p.preco):'—'}</span></div>`
+  ).join('');
+  dd.style.display = 'block';
+};
+
+window.selectItem = function(nome, preco) {
+  document.getElementById('mnItemSearch').value = nome;
+  document.getElementById('mnItemPrice').value = preco > 0 ? preco : '';
+  document.getElementById('mnItemDropdown').style.display = 'none';
+  document.getElementById('mnItemQty').focus();
+};
+
+window.onMnPagtoChange = function() {
+  const isFiado = document.getElementById('mnPagto').value === 'Fiado';
+  document.getElementById('mnFiadoRow').style.display = isFiado ? 'block' : 'none';
+  if (isFiado && !document.getElementById('mnFiadoData').value) {
+    const d = new Date(); d.setDate(d.getDate() + 7);
+    document.getElementById('mnFiadoData').value = d.toISOString().slice(0,10);
+  }
 };
 
 window.toggleDeliveryFields = function() {
@@ -2399,16 +2501,15 @@ window.toggleDeliveryFields = function() {
 };
 
 window.addManualItem = function() {
-  const name = document.getElementById('mnItemName').value.trim();
+  const name = document.getElementById('mnItemSearch').value.trim();
   const qty = parseInt(document.getElementById('mnItemQty').value)||1;
   const price = parseFloat(document.getElementById('mnItemPrice').value)||0;
-  const sabor = document.getElementById('mnItemSabor').value.trim();
-  if (!name) { showToast('Informe o nome do item.','error'); return; }
-  manualItems.push({ name, qty, price, sabor });
-  document.getElementById('mnItemName').value='';
+  if (!name) { showToast('Selecione ou digite um item.','error'); return; }
+  manualItems.push({ name, qty, price, sabor: '' });
+  document.getElementById('mnItemSearch').value='';
   document.getElementById('mnItemQty').value='1';
   document.getElementById('mnItemPrice').value='';
-  document.getElementById('mnItemSabor').value='';
+  document.getElementById('mnItemDropdown').style.display='none';
   renderManualItems();
 };
 
@@ -2417,21 +2518,17 @@ function renderManualItems() {
   const taxa = parseFloat(document.getElementById('mnTaxa')?.value||0)||0;
   const subtotal = manualItems.reduce((s,i)=>s+(i.price*i.qty),0);
   const total = subtotal + taxa;
-  document.getElementById('mnSubtotal').textContent = fmt(subtotal);
-  document.getElementById('mnTaxaVal').textContent = fmt(taxa);
   document.getElementById('mnTotal').textContent = fmt(total);
   if (!manualItems.length) { el.innerHTML=''; return; }
-  el.innerHTML = `<div style="background:#f9fafb;border-radius:8px;padding:10px;margin-bottom:12px;">
-  ${manualItems.map((i,idx)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:.82rem;">
-    <span>${i.qty}x ${i.name}${i.sabor?' ('+i.sabor+')':''}</span>
-    <span>${fmt(i.price*i.qty)} <button onclick="removeManualItem(${idx})" style="border:none;background:none;color:#ef4444;cursor:pointer;font-size:.9rem;">×</button></span>
+  el.innerHTML = `<div style="background:#f9fafb;border-radius:8px;padding:10px;margin-bottom:10px;">
+  ${manualItems.map((i,idx)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:.83rem;border-bottom:1px solid #f3f4f6;">
+    <span>${i.qty}x ${i.name}</span>
+    <span style="display:flex;align-items:center;gap:8px;">${fmt(i.price*i.qty)} <button onclick="removeManualItem(${idx})" style="border:none;background:none;color:#ef4444;cursor:pointer;font-size:1rem;line-height:1;">×</button></span>
   </div>`).join('')}
   </div>`;
 }
 
 window.removeManualItem = function(idx) { manualItems.splice(idx,1); renderManualItems(); };
-
-document.getElementById('mnTaxa')?.addEventListener('input', renderManualItems);
 
 window.saveManualOrder = async function() {
   const nome = document.getElementById('mnNome').value.trim();
@@ -2439,6 +2536,7 @@ window.saveManualOrder = async function() {
   if (!nome) { showToast('Informe o nome.','error'); return; }
   if (!manualItems.length) { showToast('Adicione pelo menos um item.','error'); return; }
   const tipo = document.getElementById('mnTipo').value;
+  const pagto = document.getElementById('mnPagto').value;
   const taxa = tipo==='entrega' ? parseFloat(document.getElementById('mnTaxa').value)||0 : 0;
   const subtotal = manualItems.reduce((s,i)=>s+(i.price*i.qty),0);
   const total = subtotal + taxa;
@@ -2448,17 +2546,29 @@ window.saveManualOrder = async function() {
     endereco: document.getElementById('mnEndereco').value.trim(),
     numero: document.getElementById('mnNumero').value.trim(),
     bairro: document.getElementById('mnBairro').value.trim(),
-    refLocal: document.getElementById('mnRef').value.trim(),
-    pagto: document.getElementById('mnPagto').value,
-    obs: document.getElementById('mnObs').value.trim(),
+    pagto, obs: document.getElementById('mnObs').value.trim(),
     items: manualItems, subtotal, taxa, total, status:'novo'
   };
   const pedidoRef = await push(ref(db,'pedidos'), order);
-  closeModal('modalNewOrder');
-  showToast('Pedido criado!');
-  if (order.pagto === 'Fiado') {
-    openFiadoModal(pedidoRef.key, nome, tel, total, order.num);
+  if (pagto === 'Fiado') {
+    const dataPrevista = document.getElementById('mnFiadoData').value;
+    await push(ref(db,'fiados'), {
+      clienteKey: tel ? 'tel_' + tel.replace(/\D/g,'') : '',
+      clienteNome: nome,
+      clienteTelefone: tel,
+      pedidoId: pedidoRef.key,
+      pedidoNum: num,
+      valor: total,
+      dataCriacao: Date.now(),
+      dataPrevista: dataPrevista || '',
+      obs: '',
+      status: 'pendente'
+    });
+    showToast('Pedido criado e fiado lançado automaticamente! 💰', 'success');
+  } else {
+    showToast('Pedido criado!', 'success');
   }
+  closeModal('modalNewOrder');
 };
 
 // ── EDIT ORDER ─────────────────────────────────────────────────
