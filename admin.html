@@ -174,6 +174,7 @@ tr:hover td{background:#fafafa;}
 .toast.error{border-left-color:var(--red);}
 .toast.warn{border-left-color:var(--yellow);}
 @keyframes slideIn{from{transform:translateX(100px);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.55;}}
 
 /* DRE */
 .dre-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:.88rem;}
@@ -250,6 +251,12 @@ tr:hover td{background:#fafafa;}
 .entregador-stat{text-align:center;}
 .entregador-stat .val{font-size:1.1rem;font-weight:800;color:var(--red);}
 .entregador-stat .lbl{font-size:.65rem;color:var(--gray);text-transform:uppercase;}
+
+/* FIADO */
+.fiado-card{padding:12px 14px;border-radius:10px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;border:1px solid #e5e7eb;background:#f9fafb;}
+.fiado-card.atrasado{background:#fef2f2;border-color:#fca5a5;}
+.fiado-badge-ok{background:#dcfce7;color:#166534;padding:2px 10px;border-radius:20px;font-size:.72rem;font-weight:600;}
+.fiado-badge-late{background:#fee2e2;color:#991b1b;padding:2px 10px;border-radius:20px;font-size:.72rem;font-weight:700;}
 </style>
 </head>
 <body>
@@ -327,6 +334,7 @@ tr:hover td{background:#fafafa;}
         <span class="chip" onclick="filterPedidos('pronto',this)">Prontos</span>
         <span class="chip" onclick="filterPedidos('entrega',this)">Saiu p/ Entrega</span>
         <span class="chip" onclick="filterPedidos('entregue',this)">Entregues</span>
+        <span class="chip" onclick="filterPedidos('retirada',this)">🏪 Retirada</span>
       </div>
       <div id="pedidosList"></div>
     </div>
@@ -425,6 +433,17 @@ tr:hover td{background:#fafafa;}
     <!-- FINANCEIRO -->
     <div class="tab-content" id="tab-financeiro">
       <div class="section-hdr"><h2>💵 Financeiro</h2></div>
+
+      <!-- VALORES A RECEBER (FIADO) -->
+      <div class="card" style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+          <div class="card-title">📋 Valores a Receber — Fiado</div>
+          <button class="btn btn-primary btn-sm" onclick="openNovoFiadoAvulso()">+ Registrar Fiado</button>
+        </div>
+        <div id="fiadosResumo" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;"></div>
+        <div id="fiadosList"></div>
+      </div>
+
       <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:20px;">
         <div class="card">
           <div class="card-title" style="margin-bottom:14px;">Registrar Despesa</div>
@@ -546,6 +565,24 @@ tr:hover td{background:#fafafa;}
         </div>
       </div>
 
+      <!-- WHATSAPP AUTOMÁTICO -->
+      <div class="card" style="margin-bottom:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+          <div class="card-title" style="margin-bottom:0;">📱 WhatsApp Automático (Z-API)</div>
+          <span id="zapiStatusBadge" style="font-size:.75rem;padding:4px 12px;border-radius:20px;background:#f3f4f6;color:#6c757d;font-weight:600;">⚪ Não configurado</span>
+        </div>
+        <div class="form-row-3">
+          <div class="form-group"><label>Instance ID</label><input type="text" id="cfgZapiInstance" class="form-control" placeholder="Ex: 3D521FD6B17C..."></div>
+          <div class="form-group"><label>Token da Instância</label><input type="text" id="cfgZapiToken" class="form-control" placeholder="Token gerado no painel Z-API"></div>
+          <div class="form-group"><label>Client-Token (Security)</label><input type="text" id="cfgZapiClientToken" class="form-control" placeholder="Opcional — painel Z-API"></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px;">
+          <button class="btn btn-green btn-sm" onclick="salvarZapiAdmin()">💾 Salvar</button>
+          <button class="btn btn-blue btn-sm" onclick="testarZapi()">📤 Testar Envio</button>
+          <span style="font-size:.75rem;color:var(--gray);">Quando configurado, mensagens são enviadas automaticamente — sem abrir nenhuma aba.</span>
+        </div>
+      </div>
+
       <!-- TAXAS DE ENTREGA -->
       <div class="card" style="margin-bottom:20px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
@@ -597,7 +634,7 @@ tr:hover td{background:#fafafa;}
         </div>
         <div class="form-group"><label>Pagamento</label>
           <select id="mnPagto" class="form-control">
-            <option>Dinheiro</option><option>Pix</option><option>Cartão Débito</option><option>Cartão Crédito</option>
+            <option>Dinheiro</option><option>Pix</option><option>Cartão Débito</option><option>Cartão Crédito</option><option>Fiado</option>
           </select>
         </div>
       </div>
@@ -614,15 +651,22 @@ tr:hover td{background:#fafafa;}
       </div>
       <div class="form-group"><label>Observações</label><textarea id="mnObs" class="form-control" rows="2"></textarea></div>
       <hr style="margin:16px 0;">
-      <div class="card-title" style="margin-bottom:10px;">Itens do Pedido</div>
+      <div class="card-title" style="margin-bottom:8px;">Itens do Pedido</div>
       <div id="mnItemsList"></div>
-      <div class="form-row-3">
-        <div class="form-group"><label>Item</label><input type="text" id="mnItemName" class="form-control" placeholder="Nome do item"></div>
-        <div class="form-group"><label>Qtd</label><input type="number" id="mnItemQty" class="form-control" value="1" min="1"></div>
-        <div class="form-group"><label>Preço</label><input type="number" id="mnItemPrice" class="form-control" placeholder="0.00" step="0.01"></div>
+      <div style="background:#f9fafb;border-radius:10px;padding:12px;margin-bottom:10px;">
+        <div class="card-title" style="margin-bottom:8px;font-size:.72rem;">📋 Selecionar do Cardápio (clique para adicionar)</div>
+        <div id="mnCatalogBtns" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;"></div>
       </div>
-      <div class="form-group"><label>Sabor/Complemento</label><input type="text" id="mnItemSabor" class="form-control" placeholder="Opcional"></div>
-      <button class="btn btn-gray btn-sm" onclick="addManualItem()">+ Adicionar Item</button>
+      <div style="background:#f0f4ff;border-radius:10px;padding:12px;margin-bottom:10px;">
+        <div class="card-title" style="margin-bottom:8px;font-size:.72rem;">➕ Adicionar item manualmente</div>
+        <div class="form-row-3">
+          <div class="form-group"><label>Item</label><input type="text" id="mnItemName" class="form-control" placeholder="Nome do item"></div>
+          <div class="form-group"><label>Qtd</label><input type="number" id="mnItemQty" class="form-control" value="1" min="1"></div>
+          <div class="form-group"><label>Preço</label><input type="number" id="mnItemPrice" class="form-control" placeholder="0.00" step="0.01"></div>
+        </div>
+        <div class="form-group"><label>Sabor/Complemento</label><input type="text" id="mnItemSabor" class="form-control" placeholder="Opcional"></div>
+        <button class="btn btn-gray btn-sm" onclick="addManualItem()">+ Adicionar Item</button>
+      </div>
       <div style="margin-top:14px;text-align:right;font-size:.88rem;">
         Subtotal: <strong id="mnSubtotal">R$0,00</strong> | Taxa: <strong id="mnTaxaVal">R$0,00</strong> | Total: <strong id="mnTotal" style="color:var(--red)">R$0,00</strong>
       </div>
@@ -630,6 +674,50 @@ tr:hover td{background:#fafafa;}
     <div class="modal-footer">
       <button class="btn btn-gray" onclick="closeModal('modalNewOrder')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveManualOrder()">Salvar Pedido</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Order Modal -->
+<div class="modal-overlay" id="modalEditOrder">
+  <div class="modal">
+    <div class="modal-header"><h3>✏️ Editar Pedido</h3><button class="modal-close" onclick="closeModal('modalEditOrder')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="editOrderId">
+      <div class="form-row">
+        <div class="form-group"><label>Forma de Pagamento</label>
+          <select id="editPagto" class="form-control">
+            <option>Dinheiro</option><option>Pix</option><option>Cartão Débito</option><option>Cartão Crédito</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Tipo de Pedido</label>
+          <select id="editTipo" class="form-control">
+            <option value="entrega">Entrega</option><option value="retirada">Retirada</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>Observações</label><textarea id="editObs" class="form-control" rows="2"></textarea></div>
+      <hr style="margin:14px 0;">
+      <div class="card-title" style="margin-bottom:10px;">Itens do Pedido</div>
+      <div id="editItemsList"></div>
+      <div style="background:#f9fafb;border-radius:8px;padding:12px;margin-top:10px;">
+        <div class="card-title" style="margin-bottom:8px;font-size:.72rem;">Adicionar Item</div>
+        <div id="editCatalogBtns" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;"></div>
+        <div class="form-row-3">
+          <div class="form-group"><label>Item</label><input type="text" id="editItemName" class="form-control" placeholder="Nome do item"></div>
+          <div class="form-group"><label>Qtd</label><input type="number" id="editItemQty" class="form-control" value="1" min="1"></div>
+          <div class="form-group"><label>Preço</label><input type="number" id="editItemPrice" class="form-control" placeholder="0.00" step="0.01"></div>
+        </div>
+        <div class="form-group"><label>Sabor/Complemento</label><input type="text" id="editItemSabor" class="form-control" placeholder="Opcional"></div>
+        <button class="btn btn-gray btn-sm" onclick="addEditItem()">+ Adicionar Item</button>
+      </div>
+      <div style="margin-top:14px;text-align:right;font-size:.88rem;">
+        Subtotal: <strong id="editSubtotal">R$0,00</strong> | Taxa: <strong id="editTaxaVal">R$0,00</strong> | Total: <strong id="editTotal" style="color:var(--red)">R$0,00</strong>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-gray" onclick="closeModal('modalEditOrder')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveEditOrder()">💾 Salvar Alterações</button>
     </div>
   </div>
 </div>
@@ -650,6 +738,25 @@ tr:hover td{background:#fafafa;}
     <div class="modal-footer">
       <button class="btn btn-gray" onclick="closeModal('modalEntregador')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveEntregador()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Fiado Modal -->
+<div class="modal-overlay" id="modalFiado">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header"><h3>💰 Registrar Fiado</h3><button class="modal-close" onclick="closeModal('modalFiado')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="fiadoPedidoId">
+      <div class="form-group"><label>Cliente</label><input type="text" id="fiadoClienteNome" class="form-control" placeholder="Nome do cliente"></div>
+      <div class="form-group"><label>Telefone</label><input type="text" id="fiadoClienteTelefone" class="form-control" placeholder="Telefone"></div>
+      <div class="form-group"><label>Valor (R$)</label><input type="number" id="fiadoValor" class="form-control" placeholder="0,00" step="0.01"></div>
+      <div class="form-group"><label>📅 Data prevista de pagamento *</label><input type="date" id="fiadoDataPrevista" class="form-control"></div>
+      <div class="form-group"><label>Observações</label><input type="text" id="fiadoObs" class="form-control" placeholder="Ex: vai pagar na sexta-feira"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-gray" onclick="closeModal('modalFiado')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveFiado()">💾 Salvar Fiado</button>
     </div>
   </div>
 </div>
@@ -747,7 +854,9 @@ let allEntregadores = {};
 let allFornecedores = {};
 let allEstoque = {};
 let allDespesas = {};
+let allFiados = {};
 let manualItems = [];
+let editItems = [];
 let pedidosFilter = 'todos';
 let dashPeriod = 'hoje';
 let dreMonthOffset = 0;
@@ -757,7 +866,7 @@ let chartBar = null;
 let chartDoughnut = null;
 let knownPedidoIds = new Set();
 let notifications = [];
-let cardapioData = { lojaFechada: false, esgotados: {}, ofertas: {}, pratos: {}, bairros: [], tempoEntrega: '', tempoRetirada: '', pedidoMinimo: 30, destaqueDia: '' };
+let cardapioData = { lojaFechada: false, esgotados: {}, ofertas: {}, pratos: {}, bairros: [], tempoEntrega: '', tempoRetirada: '', pedidoMinimo: 30, destaqueDia: '', zapiInstance: '', zapiToken: '', zapiClientToken: '' };
 let entregadorMonthModal = null;
 
 const USERS = {
@@ -772,7 +881,7 @@ const NAV_ITEMS = {
     { id:'pedidos',      icon:'📋', label:'Pedidos',    badge:'novos' },
     { id:'clientes',     icon:'👥', label:'Clientes' },
     { id:'entregadores', icon:'🏍️', label:'Entregadores' },
-    { id:'financeiro',   icon:'💵', label:'Financeiro' },
+    { id:'financeiro',   icon:'💵', label:'Financeiro', badge:'fiados' },
     { id:'estoque',      icon:'📦', label:'Estoque' },
     { id:'fornecedores', icon:'🏭', label:'Fornecedores' },
     { id:'cardapio',     icon:'🍽️', label:'Cardápio' },
@@ -841,11 +950,12 @@ window.showTab = function(id) {
   if (tab) tab.classList.add('active');
   if (nav) nav.classList.add('active');
   if (id === 'dashboard') renderDashboard();
-  if (id === 'financeiro') { renderDespesas(); renderDRE(); }
+  if (id === 'financeiro') { renderDespesas(); renderDRE(); renderFiados(); }
   if (id === 'relatorios') renderRelatorio();
   if (id === 'clientes') renderClientes();
   if (id === 'cardapio') renderCardapio();
   if (id === 'meupainel') renderMeuPainel();
+  if (id === 'entregadores') renderEntregadores();
 };
 
 // ── FIREBASE LISTENERS ─────────────────────────────────────────
@@ -874,6 +984,11 @@ function startListeners() {
   onValue(ref(db, 'financeiro/despesas'), snap => {
     allDespesas = snap.val() || {};
     if (document.getElementById('tab-financeiro').classList.contains('active')) { renderDespesas(); renderDRE(); }
+  });
+  onValue(ref(db, 'fiados'), snap => {
+    allFiados = snap.val() || {};
+    if (document.getElementById('tab-financeiro').classList.contains('active')) renderFiados();
+    updateFiadoBadge();
   });
 
   // ── CARDÁPIO LISTENERS ──
@@ -906,6 +1021,18 @@ function startListeners() {
   onValue(ref(db, 'config/destaqueDia'), snap => {
     if (snap.val() !== null) { cardapioData.destaqueDia = snap.val() || ''; document.getElementById('cfgDestaque') && (document.getElementById('cfgDestaque').value = snap.val() || ''); }
   });
+  onValue(ref(db, 'config/zapi'), snap => {
+    const v = snap.val() || {};
+    cardapioData.zapiInstance = v.instance || '';
+    cardapioData.zapiToken = v.token || '';
+    cardapioData.zapiClientToken = v.clientToken || '';
+    updateZapiStatusBadge();
+    if (document.getElementById('cfgZapiInstance')) {
+      document.getElementById('cfgZapiInstance').value = v.instance || '';
+      document.getElementById('cfgZapiToken').value = v.token || '';
+      document.getElementById('cfgZapiClientToken').value = v.clientToken || '';
+    }
+  });
   onValue(ref(db, 'bairros'), snap => {
     const d = snap.val();
     if (Array.isArray(d)) { cardapioData.bairros = d; if (document.getElementById('tab-cardapio')?.classList.contains('active')) renderBairrosAdmin(); }
@@ -931,6 +1058,7 @@ function detectNewOrders(prevKeys) {
         addNotification(`Novo pedido #${p.num || ''} de ${p.nome}`, '📦');
         playNotifSound();
         if (autoPrint) aceitarPedido(k);
+        saveClienteBasicInfo(p); // salva dados do cliente automaticamente
       }
     }
     // Detect status change to pronto for entregador bell
@@ -977,6 +1105,28 @@ const statusLabel = { novo:'Novo', preparo:'Em Preparo', pronto:'Pronto', entreg
 const statusClass = { novo:'badge-novo', preparo:'badge-preparo', pronto:'badge-pronto', entrega:'badge-entrega', entregue:'badge-entregue', cancelado:'badge-cancelado' };
 
 function badgeHtml(s) { return `<span class="badge ${statusClass[s]||'badge-novo'}">${statusLabel[s]||s}</span>`; }
+
+function parseTimeRange(str) {
+  const nums = (str||'').match(/\d+/g);
+  if (!nums || !nums.length) return null;
+  const a = parseInt(nums[0]), b = nums.length > 1 ? parseInt(nums[1]) : a;
+  return { min: Math.min(a,b), max: Math.max(a,b) };
+}
+
+function getOrderTimerHtml(p) {
+  if (!p || ['entregue','cancelado'].includes(p.status)) return '';
+  const range = parseTimeRange(p.tipo==='retirada' ? cardapioData.tempoRetirada : cardapioData.tempoEntrega);
+  if (!range || !p.timestamp) return '';
+  const elapsed = Math.floor((Date.now() - p.timestamp) / 60000);
+  const rest = range.max - elapsed;
+  if (elapsed < range.min) {
+    return `<span style="background:#dcfce7;color:#166534;border-radius:20px;padding:2px 9px;font-size:.72rem;font-weight:700;white-space:nowrap;">⏱️ ~${rest}min</span>`;
+  } else if (elapsed < range.max) {
+    return `<span style="background:#fef3c7;color:#92400e;border-radius:20px;padding:2px 9px;font-size:.72rem;font-weight:700;white-space:nowrap;">⚠️ ${rest}min restante${rest!==1?'s':''}</span>`;
+  } else {
+    return `<span style="background:#fee2e2;color:#991b1b;border-radius:20px;padding:2px 9px;font-size:.72rem;font-weight:700;white-space:nowrap;animation:pulse 1.5s infinite;">🔴 +${elapsed - range.max}min atrasado</span>`;
+  }
+}
 
 function showToast(msg, type='success') {
   const el = document.createElement('div');
@@ -1126,7 +1276,8 @@ function renderPedidos() {
   if (currentRole !== 'admin') return;
   const el = document.getElementById('pedidosList');
   let list = Object.entries(allPedidos).sort((a,b)=>(b[1].timestamp||0)-(a[1].timestamp||0));
-  if (pedidosFilter !== 'todos') list = list.filter(([,p])=>p.status===pedidosFilter);
+  if (pedidosFilter === 'retirada') list = list.filter(([,p])=>p.tipo==='retirada');
+  else if (pedidosFilter !== 'todos') list = list.filter(([,p])=>p.status===pedidosFilter);
   if (!list.length) { el.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>Nenhum pedido encontrado.</p></div>'; return; }
   el.innerHTML = list.map(([id,p]) => orderCardHtml(id, p, 'admin')).join('');
 }
@@ -1139,10 +1290,11 @@ function orderCardHtml(id, p, role) {
     <div class="order-header">
       <span class="order-num">#${p.num||'—'}</span>
       ${badgeHtml(p.status)}
+      <span id="order-timer-${id}">${getOrderTimerHtml(p)}</span>
       <span style="font-size:.8rem;color:var(--gray)">${fmtDate(p.timestamp)}</span>
       ${p.tipo==='entrega'?'<span class="badge" style="background:#ede9fe;color:#5b21b6">🛵 Entrega</span>':'<span class="badge" style="background:#dcfce7;color:#166534">🏪 Retirada</span>'}
       <span style="margin-left:auto;display:flex;gap:6px;">
-        ${role==='admin'?`<button class="btn btn-gray btn-sm" onclick="printOrder('${id}')">🖨️</button>`:''}
+        ${role==='admin'?`<button class="btn btn-gray btn-sm" onclick="printOrder('${id}')">🖨️</button><button class="btn btn-yellow btn-sm" onclick="openEditOrderModal('${id}')">✏️ Editar</button>`:''}
       </span>
     </div>
     <div class="order-body">
@@ -1169,8 +1321,16 @@ function buildStatusBtns(id, p) {
   let btns = '';
   if (s==='novo') btns += `<button class="btn btn-green btn-sm" onclick="aceitarPedido('${id}')" style="font-weight:700;font-size:.95rem;padding:8px 16px;">✅ Aceitar e Imprimir</button>`;
   if (s==='preparo') btns += `<button class="btn btn-blue btn-sm" onclick="updateStatus('${id}','pronto')">✅ Pronto</button>`;
-  if (s==='pronto') btns += `<button class="btn btn-primary btn-sm" onclick="handleSaiuEntrega('${id}')">🛵 Saiu p/ Entrega</button>`;
-  if (s==='entrega') btns += `<button class="btn btn-green btn-sm" onclick="updateStatus('${id}','entregue')">📬 Entregue</button>`;
+  if (s==='pronto') {
+    btns += `<button class="btn btn-gray btn-sm" onclick="updateStatus('${id}','preparo')" title="Desfazer Pronto">↩️ Voltar p/ Preparo</button>`;
+    if (p.tipo==='retirada') btns += `<button class="btn btn-green btn-sm" onclick="updateStatus('${id}','entregue')">✅ Retirado pelo Cliente</button>`;
+    else btns += `<button class="btn btn-primary btn-sm" onclick="handleSaiuEntrega('${id}')">🛵 Saiu p/ Entrega</button>`;
+  }
+  if (s==='entrega') {
+    btns += `<button class="btn btn-gray btn-sm" onclick="updateStatus('${id}','pronto')" title="Desfazer Saiu p/ Entrega">↩️ Voltar p/ Pronto</button>`;
+    btns += `<button class="btn btn-green btn-sm" onclick="updateStatus('${id}','entregue')">📬 Entregue</button>`;
+  }
+  if ((s==='preparo'||s==='entrega')&&p.telefone) btns += `<button class="btn btn-sm btn-green" onclick="quickWhatsApp('${id}')" style="background:#25D366;color:#fff;" title="Enviar mensagem WhatsApp">📱 WhatsApp</button>`;
   if (s!=='entregue'&&s!=='cancelado') btns += `<button class="btn btn-gray btn-sm" onclick="updateStatus('${id}','cancelado')" style="margin-left:auto">❌ Cancelar</button>`;
   btns += `<button class="btn btn-sm" onclick="deletePedido('${id}')" style="margin-left:${(s==='entregue'||s==='cancelado')?'auto':'4px'};background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;">🗑️ Excluir</button>`;
   return btns;
@@ -1192,9 +1352,8 @@ window.deletePedido = async function(id) {
 window.handleSaiuEntrega = function(id) {
   const p = allPedidos[id];
   update(ref(db, `pedidos/${id}`), { status: 'entrega' });
-  const msg = `*Passando para avisar que o seu pedido saiu para entrega, em breve estar\u00e1 na sua porta.*`;
-  const phone = (p.telefone||'').replace(/\D/g,'');
-  if (phone) window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`,'_blank');
+  const msg = `*Passando para avisar que o seu pedido saiu para entrega, em breve estará na sua porta.*`;
+  if (p.telefone) sendWhatsApp(p.telefone, msg);
   showToast('Pedido marcado como saiu para entrega!');
 };
 
@@ -1205,11 +1364,10 @@ window.aceitarPedido = async function(id) {
   await update(ref(db, `pedidos/${id}`), { status: 'preparo' });
   showToast(`✅ Pedido #${p.num||''} aceito!`, 'success');
   printOrder(id);
-  // Avisar cliente via WhatsApp com resumo do pedido
-  const phone = (p.telefone||'').replace(/\D/g,'');
-  if (phone) {
-    const msg = `*O seu pedido foi confirmado! Vamos preparar com muito carinho.*`;
-    window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+  saveClienteBasicInfo(p); // garante que cliente fica salvo ao aceitar
+  if (p.telefone) {
+    const msg = `*O seu pedido foi confirmado! Vamos preparar com muito carinho.* 🍱`;
+    sendWhatsApp(p.telefone, msg);
   }
 };
 
@@ -1349,8 +1507,7 @@ window.handleSaiuEntregaEnt = function(id) {
   const p = allPedidos[id];
   update(ref(db, `pedidos/${id}`), { status:'entrega' });
   const msg = `Olá ${p.nome}! 🛵 Seu pedido da Sonoda já saiu para entrega! Em breve estará na sua porta. Obrigado pela preferência! 🍱`;
-  const phone = (p.telefone||'').replace(/\D/g,'');
-  if (phone) window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`,'_blank');
+  if (p.telefone) sendWhatsApp(p.telefone, msg);
   showToast('Pedido saiu para entrega!');
 };
 
@@ -1408,11 +1565,53 @@ window.showClienteDetail = function(key) {
   const monthOrders = orders.filter(o => { const d=new Date(o.timestamp); return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear(); });
   const monthGasto = monthOrders.reduce((s,o)=>s+(o.total||0),0);
   const monthName = now.toLocaleDateString('pt-BR',{month:'long'});
+  const enderecosHtml = (() => {
+    const lista = Array.isArray(c.enderecos) ? c.enderecos.filter(e => e.endereco||e.bairro) : [];
+    if (!lista.length) return `<p style="font-size:.8rem;color:var(--gray);">Nenhum endereço cadastrado.</p>`;
+    return lista.map((e,i) => `<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;background:#f9fafb;border-radius:8px;margin-bottom:5px;font-size:.82rem;">
+      <span style="color:var(--red);font-size:.9rem;">📍</span>
+      <div><strong>${e.endereco||''}${e.numero ? ', '+e.numero : ''}</strong>${e.bairro?' — '+e.bairro:''}${e.refLocal?'<br><span style="color:var(--gray);font-size:.75rem;">Ref: '+e.refLocal+'</span>':''}</div>
+    </div>`).join('');
+  })();
+  // Fiados do cliente
+  const today = new Date().toISOString().slice(0,10);
+  const phone = (c.telefone||'').replace(/\D/g,'');
+  const fiadosPendentes = Object.entries(allFiados).filter(([,f]) =>
+    f.status !== 'pago' && (f.clienteKey === key || (phone && (f.clienteTelefone||'').replace(/\D/g,'') === phone))
+  );
+  const totalFiado = fiadosPendentes.reduce((s,[,f])=>s+(f.valor||0),0);
+  const fiadoHtml = fiadosPendentes.length ? `
+    <div style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div class="card-title" style="color:#991b1b;">💰 Fiados em Aberto</div>
+        <span style="font-weight:800;color:#991b1b;">${fmt(totalFiado)}</span>
+      </div>
+      ${fiadosPendentes.map(([id,f]) => {
+        const overdue = f.dataPrevista && f.dataPrevista < today;
+        const daysLate = overdue ? Math.max(1, Math.floor((new Date(today) - new Date(f.dataPrevista)) / 86400000)) : 0;
+        return `<div style="padding:9px 12px;background:${overdue?'#fef2f2':'#f9fafb'};border-radius:8px;margin-bottom:6px;border:1px solid ${overdue?'#fca5a5':'#e5e7eb'};">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <div style="font-size:.82rem;">
+              <strong>${fmt(f.valor)}</strong>${f.pedidoNum?` · Pedido #${f.pedidoNum}`:''}
+              ${f.obs?`<br><span style="color:var(--gray);">📝 ${f.obs}</span>`:''}
+              <br>${overdue
+                ? `<span style="color:#991b1b;font-weight:700;font-size:.75rem;">⚠️ ${daysLate} dia${daysLate!==1?'s':''} em atraso</span>`
+                : `<span style="color:#166534;font-size:.75rem;">📅 Pagar até ${fmtDateBr(f.dataPrevista)}</span>`}
+            </div>
+            <button class="btn btn-green btn-sm" style="flex-shrink:0" onclick="darBaixaFiado('${id}').then(()=>showClienteDetail('${key}'))">✅ Baixa</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  ` : '';
   content.innerHTML = `
     <div style="margin-bottom:14px;">
       <h3 style="font-size:1.1rem;font-weight:800">${c.nome}</h3>
-      <p style="font-size:.8rem;color:var(--gray)">${c.telefone} · ${c.endereco||''} ${c.numero||''} · ${c.bairro||''}</p>
+      <p style="font-size:.8rem;color:var(--gray);margin-bottom:10px;">${c.telefone}</p>
+      <div class="card-title" style="margin-bottom:6px;">Endereços Cadastrados</div>
+      ${enderecosHtml}
     </div>
+    ${fiadoHtml}
     <div class="stat-cards" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
       <div class="stat-card red"><div class="stat-val" style="font-size:1.2rem">${fmt(c.totalGasto)}</div><div class="stat-lbl">Total Gasto</div></div>
       <div class="stat-card blue"><div class="stat-val" style="font-size:1.2rem">${c.totalPedidos||0}</div><div class="stat-lbl">Total Pedidos</div></div>
@@ -1430,17 +1629,51 @@ window.showClienteDetail = function(key) {
 };
 
 // ── AUTO SAVE CLIENTE ──────────────────────────────────────────
+function buildEnderecoKey(e) {
+  return ((e.endereco||'') + (e.numero||'') + (e.bairro||'')).toLowerCase().replace(/\s/g,'');
+}
+
+function mergeEnderecos(existing, novoEnd) {
+  const lista = Array.isArray(existing) ? [...existing] : (existing ? [existing] : []);
+  if (!novoEnd.endereco && !novoEnd.bairro) return lista;
+  const novaKey = buildEnderecoKey(novoEnd);
+  if (!lista.some(e => buildEnderecoKey(e) === novaKey)) lista.push(novoEnd);
+  return lista;
+}
+
+// Salva dados básicos do cliente sem alterar totais (chamado no novo pedido)
+async function saveClienteBasicInfo(order) {
+  if (!order || !order.telefone) return;
+  const phone = order.telefone.replace(/\D/g,'');
+  if (!phone) return;
+  const key = 'tel_' + phone;
+  const existing = allClientes[key];
+  const novoEnd = { endereco: order.endereco||'', numero: order.numero||'', bairro: order.bairro||'', refLocal: order.refLocal||'' };
+  const enderecos = mergeEnderecos(existing && existing.enderecos, novoEnd);
+  const updates = {
+    nome: order.nome || (existing && existing.nome) || '',
+    telefone: order.telefone,
+    bairro: novoEnd.bairro || (existing && existing.bairro) || '',
+    enderecos,
+    ultimoPedido: order.timestamp || Date.now()
+  };
+  if (!existing) { updates.totalGasto = 0; updates.totalPedidos = 0; }
+  await update(ref(db, `clientes/${key}`), updates);
+}
+
 async function autoSaveCliente(order) {
   if (!order || !order.telefone) return;
   const phone = order.telefone.replace(/\D/g,'');
   if (!phone) return;
   const key = 'tel_' + phone;
   const existing = allClientes[key] || {};
+  const novoEnd = { endereco: order.endereco||'', numero: order.numero||'', bairro: order.bairro||'', refLocal: order.refLocal||'' };
+  const enderecos = mergeEnderecos(existing.enderecos, novoEnd);
   await set(ref(db, `clientes/${key}`), {
     nome: order.nome || existing.nome || '',
     telefone: order.telefone,
-    endereco: order.endereco || existing.endereco || '',
-    bairro: order.bairro || existing.bairro || '',
+    bairro: novoEnd.bairro || existing.bairro || '',
+    enderecos,
     totalGasto: (existing.totalGasto || 0) + (order.total || 0),
     totalPedidos: (existing.totalPedidos || 0) + 1,
     ultimoPedido: order.timestamp || Date.now()
@@ -1521,6 +1754,133 @@ window.showEntregadorRelatorio = function(id) {
 };
 
 function populateEntregadorDropdowns() {}
+
+// ── FIADO ───────────────────────────────────────────────────────
+function fmtDateBr(iso) {
+  if (!iso) return '—';
+  const [y,m,d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function updateFiadoBadge() {
+  const today = new Date().toISOString().slice(0,10);
+  const overdue = Object.values(allFiados).filter(f => f.status !== 'pago' && f.dataPrevista && f.dataPrevista < today).length;
+  const badge = document.getElementById('badge-fiados');
+  if (badge) { badge.textContent = overdue; badge.style.display = overdue > 0 ? '' : 'none'; }
+}
+
+function renderFiados() {
+  const el = document.getElementById('fiadosList');
+  const resumoEl = document.getElementById('fiadosResumo');
+  if (!el) return;
+  const today = new Date().toISOString().slice(0,10);
+  const pendentes = Object.entries(allFiados).filter(([,f]) => f.status !== 'pago');
+  const totalPendente = pendentes.reduce((s,[,f])=>s+(f.valor||0),0);
+  const atrasados = pendentes.filter(([,f]) => f.dataPrevista && f.dataPrevista < today);
+  const totalAtrasado = atrasados.reduce((s,[,f])=>s+(f.valor||0),0);
+  if (resumoEl) {
+    resumoEl.innerHTML = `
+      <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:10px 16px;flex:1;min-width:140px;">
+        <div style="font-size:.72rem;color:#92400e;text-transform:uppercase;font-weight:700;">Total a Receber</div>
+        <div style="font-size:1.15rem;font-weight:800;color:#92400e;">${fmt(totalPendente)}</div>
+        <div style="font-size:.72rem;color:#92400e;">${pendentes.length} fiado${pendentes.length!==1?'s':''} em aberto</div>
+      </div>
+      ${atrasados.length ? `<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:10px 16px;flex:1;min-width:140px;">
+        <div style="font-size:.72rem;color:#991b1b;text-transform:uppercase;font-weight:700;">⚠️ Em Atraso</div>
+        <div style="font-size:1.15rem;font-weight:800;color:#991b1b;">${fmt(totalAtrasado)}</div>
+        <div style="font-size:.72rem;color:#991b1b;">${atrasados.length} fiado${atrasados.length!==1?'s':''} vencido${atrasados.length!==1?'s':''}</div>
+      </div>` : ''}
+    `;
+  }
+  if (!pendentes.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">✅</div><p>Nenhum valor em aberto. Tudo em dia!</p></div>';
+    return;
+  }
+  const sorted = pendentes.sort((a,b) => (a[1].dataPrevista||'9999') > (b[1].dataPrevista||'9999') ? 1 : -1);
+  el.innerHTML = sorted.map(([id, f]) => {
+    const overdue = f.dataPrevista && f.dataPrevista < today;
+    const daysLate = overdue ? Math.max(1, Math.floor((new Date(today) - new Date(f.dataPrevista)) / 86400000)) : 0;
+    return `<div class="fiado-card${overdue?' atrasado':''}">
+      <div style="flex:1;min-width:160px;">
+        <div style="font-weight:700;font-size:.9rem;">${f.clienteNome||'—'} <span style="font-weight:400;color:var(--gray);font-size:.78rem;">${f.clienteTelefone||''}</span></div>
+        <div style="font-size:.77rem;color:var(--gray);margin-top:2px;">${f.pedidoNum?`Pedido #${f.pedidoNum} · `:''}Registrado em ${fmtDate(f.dataCriacao)}${f.obs?`<br>📝 ${f.obs}`:''}</div>
+        <div style="margin-top:5px;">
+          ${overdue
+            ? `<span class="fiado-badge-late">⚠️ ${daysLate} dia${daysLate!==1?'s':''} em atraso</span>`
+            : `<span class="fiado-badge-ok">📅 Pagar até ${fmtDateBr(f.dataPrevista)}</span>`}
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <div style="font-size:1.1rem;font-weight:800;color:var(--red);min-width:70px;text-align:right;">${fmt(f.valor)}</div>
+        <button class="btn btn-green btn-sm" onclick="darBaixaFiado('${id}')">✅ Baixa</button>
+        <button class="btn btn-gray btn-sm" onclick="deleteFiado('${id}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.openFiadoModal = function(pedidoId, nome, telefone, valor, pedidoNum) {
+  document.getElementById('fiadoPedidoId').value = pedidoId || '';
+  document.getElementById('fiadoClienteNome').value = nome || '';
+  document.getElementById('fiadoClienteTelefone').value = telefone || '';
+  document.getElementById('fiadoValor').value = valor || '';
+  document.getElementById('fiadoObs').value = pedidoNum ? `Pedido #${pedidoNum}` : '';
+  const d = new Date(); d.setDate(d.getDate() + 7);
+  document.getElementById('fiadoDataPrevista').value = d.toISOString().slice(0,10);
+  openModal('modalFiado');
+};
+
+window.openNovoFiadoAvulso = function() {
+  document.getElementById('fiadoPedidoId').value = '';
+  document.getElementById('fiadoClienteNome').value = '';
+  document.getElementById('fiadoClienteTelefone').value = '';
+  document.getElementById('fiadoValor').value = '';
+  document.getElementById('fiadoObs').value = '';
+  const d = new Date(); d.setDate(d.getDate() + 7);
+  document.getElementById('fiadoDataPrevista').value = d.toISOString().slice(0,10);
+  openModal('modalFiado');
+};
+
+window.saveFiado = async function() {
+  const dataPrevista = document.getElementById('fiadoDataPrevista').value;
+  const valor = parseFloat(document.getElementById('fiadoValor').value) || 0;
+  const nome = document.getElementById('fiadoClienteNome').value.trim();
+  if (!nome) { showToast('Informe o nome do cliente.','error'); return; }
+  if (!valor) { showToast('Informe o valor do fiado.','error'); return; }
+  if (!dataPrevista) { showToast('Informe a data prevista de pagamento.','error'); return; }
+  const pedidoId = document.getElementById('fiadoPedidoId').value;
+  const pedido = pedidoId ? allPedidos[pedidoId] : null;
+  const tel = document.getElementById('fiadoClienteTelefone').value.trim();
+  const fiado = {
+    clienteKey: tel ? 'tel_' + tel.replace(/\D/g,'') : '',
+    clienteNome: nome,
+    clienteTelefone: tel,
+    pedidoId: pedidoId || '',
+    pedidoNum: pedido?.num || '',
+    valor,
+    dataCriacao: Date.now(),
+    dataPrevista,
+    obs: document.getElementById('fiadoObs').value.trim(),
+    status: 'pendente'
+  };
+  await push(ref(db, 'fiados'), fiado);
+  closeModal('modalFiado');
+  showToast('Fiado registrado! 💰', 'success');
+};
+
+window.darBaixaFiado = async function(id) {
+  const f = allFiados[id];
+  if (!f) return;
+  if (!confirm(`Confirmar pagamento de ${fmt(f.valor||0)} de ${f.clienteNome||'?'}?`)) return;
+  await update(ref(db, `fiados/${id}`), { status: 'pago', dataPagamento: Date.now() });
+  showToast('Fiado quitado! ✅', 'success');
+};
+
+window.deleteFiado = async function(id) {
+  if (!confirm('Excluir este registro de fiado?')) return;
+  await remove(ref(db, `fiados/${id}`));
+  showToast('Fiado removido.', 'warn');
+};
 
 // ── FINANCEIRO ────────────────────────────────────────────────
 window.saveDespesa = async function() {
@@ -1984,7 +2344,23 @@ window.openNewOrderModal = function() {
   document.getElementById('mnItemPrice').value='';
   document.getElementById('mnItemSabor').value='';
   renderManualItems();
+  // Botões rápidos do cardápio
+  const catEl = document.getElementById('mnCatalogBtns');
+  if (catEl) {
+    catEl.innerHTML = PRATOS_LIST.map(pr => {
+      const dadosFb = cardapioData.pratos[pr.id] || {};
+      const nome = dadosFb.nome || pr.nome;
+      const preco = dadosFb.preco !== undefined ? dadosFb.preco : pr.preco;
+      return `<button class="btn btn-gray btn-sm" onclick="addItemFromCatalog('${nome.replace(/'/g,"\\'")}',${preco})" style="font-size:.75rem;padding:6px 10px;">${nome}${preco>0?' — '+fmt(preco):''}</button>`;
+    }).join('');
+  }
   openModal('modalNewOrder');
+};
+
+window.addItemFromCatalog = function(nome, preco) {
+  manualItems.push({ name: nome, qty: 1, price: preco, sabor: '' });
+  renderManualItems();
+  showToast(nome + ' adicionado!', 'success');
 };
 
 window.toggleDeliveryFields = function() {
@@ -2047,9 +2423,97 @@ window.saveManualOrder = async function() {
     obs: document.getElementById('mnObs').value.trim(),
     items: manualItems, subtotal, taxa, total, status:'novo'
   };
-  await push(ref(db,'pedidos'), order);
+  const pedidoRef = await push(ref(db,'pedidos'), order);
   closeModal('modalNewOrder');
   showToast('Pedido criado!');
+  if (order.pagto === 'Fiado') {
+    openFiadoModal(pedidoRef.key, nome, tel, total, order.num);
+  }
+};
+
+// ── EDIT ORDER ─────────────────────────────────────────────────
+window.openEditOrderModal = function(id) {
+  const p = allPedidos[id];
+  if (!p) return;
+  editItems = JSON.parse(JSON.stringify(p.items || []));
+  document.getElementById('editOrderId').value = id;
+  document.getElementById('editPagto').value = p.pagto || 'Dinheiro';
+  document.getElementById('editTipo').value = p.tipo || 'entrega';
+  document.getElementById('editObs').value = p.obs || '';
+  renderEditItems();
+  // Catalog buttons
+  const catEl = document.getElementById('editCatalogBtns');
+  if (catEl) {
+    catEl.innerHTML = PRATOS_LIST.map(pr => {
+      const dadosFb = cardapioData.pratos[pr.id] || {};
+      const nome = dadosFb.nome || pr.nome;
+      const preco = dadosFb.preco !== undefined ? dadosFb.preco : pr.preco;
+      return `<button class="btn btn-gray btn-sm" onclick="addEditItemFromCatalog('${nome.replace(/'/g,"\\'")}',${ preco})" style="font-size:.73rem;">${nome}</button>`;
+    }).join('');
+  }
+  openModal('modalEditOrder');
+};
+
+window.addEditItemFromCatalog = function(nome, preco) {
+  editItems.push({ name: nome, qty: 1, price: preco, sabor: '' });
+  renderEditItems();
+};
+
+window.addEditItem = function() {
+  const name = document.getElementById('editItemName').value.trim();
+  const qty = parseInt(document.getElementById('editItemQty').value) || 1;
+  const price = parseFloat(document.getElementById('editItemPrice').value) || 0;
+  const sabor = document.getElementById('editItemSabor').value.trim();
+  if (!name) { showToast('Informe o nome do item.', 'error'); return; }
+  editItems.push({ name, qty, price, sabor });
+  document.getElementById('editItemName').value = '';
+  document.getElementById('editItemQty').value = '1';
+  document.getElementById('editItemPrice').value = '';
+  document.getElementById('editItemSabor').value = '';
+  renderEditItems();
+};
+
+window.removeEditItem = function(idx) { editItems.splice(idx, 1); renderEditItems(); };
+
+function renderEditItems() {
+  const el = document.getElementById('editItemsList');
+  const id = document.getElementById('editOrderId').value;
+  const p = allPedidos[id] || {};
+  const taxa = p.taxa || 0;
+  const subtotal = editItems.reduce((s, i) => s + (i.price * i.qty), 0);
+  const total = subtotal + taxa;
+  document.getElementById('editSubtotal').textContent = fmt(subtotal);
+  document.getElementById('editTaxaVal').textContent = fmt(taxa);
+  document.getElementById('editTotal').textContent = fmt(total);
+  if (!editItems.length) { el.innerHTML = '<div style="color:#999;font-size:.82rem;padding:8px 0;">Nenhum item adicionado.</div>'; return; }
+  el.innerHTML = `<div style="background:#f9fafb;border-radius:8px;padding:10px;margin-bottom:8px;">
+  ${editItems.map((i, idx) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:.82rem;">
+    <span>${i.qty}x ${i.name}${i.sabor ? ' (' + i.sabor + ')' : ''}</span>
+    <span style="display:flex;align-items:center;gap:8px;">${fmt(i.price * i.qty)}
+      <button onclick="removeEditItem(${idx})" style="border:none;background:none;color:#ef4444;cursor:pointer;font-size:.9rem;">×</button>
+    </span>
+  </div>`).join('')}
+  </div>`;
+}
+
+window.saveEditOrder = async function() {
+  const id = document.getElementById('editOrderId').value;
+  if (!id || !allPedidos[id]) return;
+  if (!editItems.length) { showToast('Adicione pelo menos um item.', 'error'); return; }
+  const p = allPedidos[id];
+  const taxa = p.taxa || 0;
+  const subtotal = editItems.reduce((s, i) => s + (i.price * i.qty), 0);
+  const total = subtotal + taxa;
+  await update(ref(db, `pedidos/${id}`), {
+    pagto: document.getElementById('editPagto').value,
+    tipo: document.getElementById('editTipo').value,
+    obs: document.getElementById('editObs').value.trim(),
+    items: editItems,
+    subtotal,
+    total
+  });
+  closeModal('modalEditOrder');
+  showToast('✅ Pedido atualizado com sucesso!');
 };
 
 // ── INIT DATE ─────────────────────────────────────────────────
@@ -2247,6 +2711,103 @@ window.toggleOfertaAdmin = function(id) {
     .then(() => showToast(!atual ? '⭐ Oferta ativada!' : 'Oferta removida'))
     .catch(() => showToast('Erro', 'error'));
 };
+
+// ── WHATSAPP / Z-API ───────────────────────────────────────────
+window.quickWhatsApp = function(id) {
+  const p = allPedidos[id];
+  if (!p || !p.telefone) return;
+  const msgs = {
+    novo:    `Olá ${p.nome}! 🍱 Recebemos seu pedido #${p.num||''} e já estamos analisando. Em breve confirmaremos!`,
+    preparo: `Olá, ${p.nome}! O seu pedido foi confirmado e será preparado com muito carinho.`,
+    pronto:  `Olá, ${p.nome}! Seu pedido está pronto!${p.tipo==='retirada' ? ' Pode vir retirar.' : ' Logo sairá para entrega.'}`,
+    entrega: `Olá, ${p.nome}! Passando para avisar que o seu pedido saiu para entrega e logo estará na sua porta!`,
+  };
+  const defaultMsg = `Olá ${p.nome}! 🍱 Sonoda Food — pedido #${p.num||''}.`;
+  openWhatsAppPopup(p.telefone, msgs[p.status] || defaultMsg);
+};
+
+function openWhatsAppPopup(phone, message) {
+  const clean = (phone||'').replace(/\D/g,'');
+  if (!clean) return;
+  const url = `https://wa.me/55${clean}?text=${encodeURIComponent(message)}`;
+  const w = 480, h = 680;
+  const left = Math.max(0, window.screen.width  - w - 16);
+  const top  = Math.max(0, window.screen.height - h - 60);
+  window.open(url, 'wa_popup', `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+}
+
+async function sendWhatsApp(phone, message) {
+  const clean = (phone||'').replace(/\D/g,'');
+  if (!clean) return;
+  const { zapiInstance, zapiToken, zapiClientToken } = cardapioData;
+  if (zapiInstance && zapiToken) {
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (zapiClientToken) headers['Client-Token'] = zapiClientToken;
+      const res = await fetch(
+        `https://api.z-api.io/instances/${zapiInstance}/token/${zapiToken}/send-text`,
+        { method:'POST', headers, body: JSON.stringify({ phone:'55'+clean, message }) }
+      );
+      if (res.ok) { showToast('📱 WhatsApp enviado!', 'success'); return; }
+      showToast('Z-API: erro — abrindo popup.', 'warn');
+    } catch(e) {
+      showToast('Z-API: falha — abrindo popup.', 'warn');
+    }
+  }
+  // Sem Z-API ou se falhar: abre popup pequeno no canto (não sai da página)
+  openWhatsAppPopup(phone, message);
+}
+
+function updateZapiStatusBadge() {
+  const el = document.getElementById('zapiStatusBadge');
+  if (!el) return;
+  if (cardapioData.zapiInstance && cardapioData.zapiToken) {
+    el.textContent = '🟢 Configurado — envio automático ativo';
+    el.style.background = '#dcfce7'; el.style.color = '#166534';
+  } else {
+    el.textContent = '⚪ Não configurado';
+    el.style.background = '#f3f4f6'; el.style.color = '#6c757d';
+  }
+}
+
+window.salvarZapiAdmin = function() {
+  const instance = document.getElementById('cfgZapiInstance').value.trim();
+  const token = document.getElementById('cfgZapiToken').value.trim();
+  const clientToken = document.getElementById('cfgZapiClientToken').value.trim();
+  if (!instance || !token) { showToast('Informe Instance ID e Token.', 'error'); return; }
+  set(ref(db, 'config/zapi'), { instance, token, clientToken })
+    .then(() => showToast('📱 Z-API configurado! Mensagens serão enviadas automaticamente.'))
+    .catch(() => showToast('Erro ao salvar.', 'error'));
+};
+
+window.testarZapi = async function() {
+  const instance = document.getElementById('cfgZapiInstance').value.trim();
+  const token = document.getElementById('cfgZapiToken').value.trim();
+  const clientToken = document.getElementById('cfgZapiClientToken').value.trim();
+  const phone = prompt('Informe o número para teste (com DDD, sem +55):');
+  if (!phone) return;
+  const clean = phone.replace(/\D/g,'');
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (clientToken) headers['Client-Token'] = clientToken;
+    const res = await fetch(
+      `https://api.z-api.io/instances/${instance}/token/${token}/send-text`,
+      { method:'POST', headers, body: JSON.stringify({ phone:'55'+clean, message:'✅ Teste de mensagem automática — Sonoda Food Admin' }) }
+    );
+    if (res.ok) showToast('✅ Mensagem de teste enviada com sucesso!', 'success');
+    else { const err = await res.json(); showToast('Erro: ' + (err.error || res.status), 'error'); }
+  } catch(e) {
+    showToast('Falha ao conectar na Z-API: ' + e.message, 'error');
+  }
+};
+
+// ── TIMER REFRESH ──────────────────────────────────────────────
+setInterval(() => {
+  Object.entries(allPedidos).forEach(([id, p]) => {
+    const el = document.getElementById('order-timer-' + id);
+    if (el) el.innerHTML = getOrderTimerHtml(p);
+  });
+}, 30000); // atualiza a cada 30 segundos
 </script>
 </body>
 </html>
