@@ -1225,10 +1225,14 @@ function buildStatusBtns(id, p) {
   if (s==='novo') btns += `<button class="btn btn-green btn-sm" onclick="aceitarPedido('${id}')" style="font-weight:700;font-size:.95rem;padding:8px 16px;">✅ Aceitar e Imprimir</button>`;
   if (s==='preparo') btns += `<button class="btn btn-blue btn-sm" onclick="updateStatus('${id}','pronto')">✅ Pronto</button>`;
   if (s==='pronto') {
+    btns += `<button class="btn btn-gray btn-sm" onclick="updateStatus('${id}','preparo')" title="Desfazer Pronto">↩️ Voltar p/ Preparo</button>`;
     if (p.tipo==='retirada') btns += `<button class="btn btn-green btn-sm" onclick="updateStatus('${id}','entregue')">✅ Retirado pelo Cliente</button>`;
     else btns += `<button class="btn btn-primary btn-sm" onclick="handleSaiuEntrega('${id}')">🛵 Saiu p/ Entrega</button>`;
   }
-  if (s==='entrega') btns += `<button class="btn btn-green btn-sm" onclick="updateStatus('${id}','entregue')">📬 Entregue</button>`;
+  if (s==='entrega') {
+    btns += `<button class="btn btn-gray btn-sm" onclick="updateStatus('${id}','pronto')" title="Desfazer Saiu p/ Entrega">↩️ Voltar p/ Pronto</button>`;
+    btns += `<button class="btn btn-green btn-sm" onclick="updateStatus('${id}','entregue')">📬 Entregue</button>`;
+  }
   if (s!=='entregue'&&s!=='cancelado') btns += `<button class="btn btn-gray btn-sm" onclick="updateStatus('${id}','cancelado')" style="margin-left:auto">❌ Cancelar</button>`;
   btns += `<button class="btn btn-sm" onclick="deletePedido('${id}')" style="margin-left:${(s==='entregue'||s==='cancelado')?'auto':'4px'};background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;">🗑️ Excluir</button>`;
   return btns;
