@@ -201,7 +201,7 @@ tr:hover td{background:#fafafa;}
 .client-detail{background:#f9fafb;border-radius:10px;padding:16px;margin-top:16px;}
 
 /* PERIOD FILTER */
-.period-filter{display:flex;gap:8px;margin-bottom:20px;}
+.period-filter{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
 
 /* PRINT */
 #printArea{display:none;}
@@ -251,6 +251,11 @@ tr:hover td{background:#fafafa;}
   .order-actions{gap:6px;}
   .order-actions .btn{font-size:.72rem;padding:5px 8px;}
   .clientes-grid{grid-template-columns:1fr !important;}
+  .fin-grid{grid-template-columns:1fr;}
+  .fiado-actions{width:100%;justify-content:space-between;}
+  .fiado-actions>div{flex:1;}
+  table{font-size:.78rem;}
+  th,td{padding:7px 6px;}
 }
 
 /* EMPTY STATE */
@@ -285,6 +290,13 @@ tr:hover td{background:#fafafa;}
 .fiado-card.atrasado{background:#fef2f2;border-color:#fca5a5;}
 .fiado-badge-ok{background:#dcfce7;color:#166534;padding:2px 10px;border-radius:20px;font-size:.72rem;font-weight:600;}
 .fiado-badge-late{background:#fee2e2;color:#991b1b;padding:2px 10px;border-radius:20px;font-size:.72rem;font-weight:700;}
+.fiado-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;}
+
+/* FIN GRID */
+.fin-grid{display:grid;grid-template-columns:1fr 1.5fr;gap:20px;}
+
+/* PRATO BUTTONS */
+.prato-toggle-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
 </style>
 </head>
 <body>
@@ -476,7 +488,7 @@ tr:hover td{background:#fafafa;}
         <div id="fiadosList"></div>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:20px;">
+      <div class="fin-grid">
         <div class="card">
           <div class="card-title" style="margin-bottom:14px;">Registrar Despesa</div>
           <div class="form-group"><label>Data</label><input type="date" id="despData" class="form-control"></div>
@@ -515,7 +527,7 @@ tr:hover td{background:#fafafa;}
     <div class="tab-content" id="tab-estoque">
       <div class="section-hdr">
         <h2>📦 Estoque</h2>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-green" onclick="sendShoppingWhatsapp()">📱 Enviar Lista p/ WhatsApp</button>
           <button class="btn btn-primary" onclick="openEstoqueModal()">+ Novo Insumo</button>
         </div>
@@ -620,7 +632,7 @@ tr:hover td{background:#fafafa;}
 
       <!-- TAXAS DE ENTREGA -->
       <div class="card" style="margin-bottom:20px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
           <div class="card-title" style="margin-bottom:0;">🛵 Taxas de Entrega por Bairro</div>
           <button class="btn btn-sm" style="background:var(--green);color:#fff;" onclick="addBairroAdmin()">+ Bairro</button>
         </div>
@@ -639,7 +651,7 @@ tr:hover td{background:#fafafa;}
     <div class="tab-content" id="tab-relatorios">
       <div class="section-hdr">
         <h2>📈 Relatórios</h2>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="chip active" onclick="setRelatPeriod('hoje',this)">Hoje</button>
           <button class="chip" onclick="setRelatPeriod('semana',this)">Esta Semana</button>
           <button class="chip" onclick="setRelatPeriod('mes',this)">Este Mês</button>
@@ -1929,7 +1941,7 @@ function renderFiados() {
             : `<span class="fiado-badge-ok">📅 Pagar até ${fmtDateBr(f.dataPrevista)}</span>`}
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+      <div class="fiado-actions">
         <div style="font-size:1.1rem;font-weight:800;color:var(--red);min-width:70px;text-align:right;">${fmt(f.valor)}</div>
         <button class="btn btn-green btn-sm" onclick="darBaixaFiado('${id}')">✅ Baixa</button>
         <button class="btn btn-gray btn-sm" onclick="deleteFiado('${id}')">🗑️</button>
@@ -2879,16 +2891,18 @@ function renderPratoRow(p) {
       <textarea id="desc-${p.id}" rows="2" placeholder="Descrição do prato..."
         style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:7px 10px;font-size:.82rem;background:#fff;resize:vertical;">${descricao}</textarea>
     </div>
-    <button onclick="toggleEsgotadoAdmin('${p.id}')"
-      style="border:none;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:.82rem;font-weight:700;
-      background:${esgotado ? '#fee2e2' : '#dcfce7'};color:${esgotado ? '#c0392b' : '#166534'};">
-      ${esgotado ? '🔴 Esgotado — Clique p/ Disponibilizar' : '🟢 Disponível — Clique p/ Esgotar'}
-    </button>
-    <button onclick="toggleOfertaAdmin('${p.id}')"
-      style="border:none;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:.82rem;font-weight:700;
-      background:${oferta ? '#fef3c7' : '#f3f4f6'};color:${oferta ? '#92400e' : '#6c757d'};">
-      ${oferta ? '⭐ Oferta Ativa' : '☆ Sem Oferta'}
-    </button>
+    <div class="prato-toggle-btns">
+      <button onclick="toggleEsgotadoAdmin('${p.id}')"
+        style="border:none;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:.82rem;font-weight:700;
+        background:${esgotado ? '#fee2e2' : '#dcfce7'};color:${esgotado ? '#c0392b' : '#166534'};">
+        ${esgotado ? '🔴 Esgotado — Clique p/ Disponibilizar' : '🟢 Disponível — Clique p/ Esgotar'}
+      </button>
+      <button onclick="toggleOfertaAdmin('${p.id}')"
+        style="border:none;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:.82rem;font-weight:700;
+        background:${oferta ? '#fef3c7' : '#f3f4f6'};color:${oferta ? '#92400e' : '#6c757d'};">
+        ${oferta ? '⭐ Oferta Ativa' : '☆ Sem Oferta'}
+      </button>
+    </div>
   </div>`;
 }
 
