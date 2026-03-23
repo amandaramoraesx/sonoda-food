@@ -449,15 +449,18 @@ tr:hover td{background:#fafafa;}
           <div class="card-title" style="margin-bottom:14px;">Registrar Despesa</div>
           <div class="form-group"><label>Data</label><input type="date" id="despData" class="form-control"></div>
           <div class="form-group"><label>Categoria</label>
-            <select id="despCategoria" class="form-control">
+            <select id="despCategoria" class="form-control" onchange="onDespCategoriaChange()">
               <option value="">Selecione...</option>
-              <option>Salários</option><option>Mercado/Insumos</option>
+              <option>Diária Entregador</option><option>Salários</option><option>Mercado/Insumos</option>
               <option>Contas Fixas</option><option>Manutenção</option><option>Embalagens/Descartáveis</option>
             </select>
           </div>
           <div class="form-group"><label>Descrição</label><input type="text" id="despDescricao" class="form-control" placeholder="Ex: Pagamento fornecedor..."></div>
           <div class="form-group"><label>Valor (R$)</label><input type="number" id="despValor" class="form-control" placeholder="0,00" step="0.01"></div>
-          <button class="btn btn-primary" style="width:100%" onclick="saveDespesa()">Salvar Despesa</button>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary" style="flex:1" onclick="saveDespesa()">Salvar Despesa</button>
+            <button class="btn btn-sm" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;padding:0 12px;border-radius:10px;font-weight:700;white-space:nowrap;" onclick="lancaDiariaEntregador()" title="Lança diária do entregador com data de hoje e valor R$50">⚡ Diária R$50</button>
+          </div>
         </div>
         <div>
           <div class="card" style="margin-bottom:16px;">
@@ -749,7 +752,10 @@ tr:hover td{background:#fafafa;}
     <div class="modal-body">
       <div class="form-group"><label>Nome</label><input type="text" id="entNome" class="form-control"></div>
       <div class="form-group"><label>Telefone</label><input type="text" id="entTel" class="form-control"></div>
-      <div class="form-group"><label>Valor Fixo Diário (R$)</label><input type="number" id="entValor" class="form-control" step="0.01"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Diária (R$)</label><input type="number" id="entValor" class="form-control" step="0.01" placeholder="50,00"><div style="font-size:.72rem;color:var(--gray);margin-top:3px;">Valor por dia trabalhado</div></div>
+        <div class="form-group"><label>Salário Mensal (R$)</label><input type="number" id="entSalarioMensal" class="form-control" step="0.01" placeholder="600,00"><div style="font-size:.72rem;color:var(--gray);margin-top:3px;">Total esperado/mês</div></div>
+      </div>
       <div class="form-group">
         <label class="toggle-wrap"><label class="toggle"><input type="checkbox" id="entAtivo" checked><span class="toggle-slider"></span></label>Ativo</label>
       </div>
@@ -1738,7 +1744,7 @@ function renderEntregadores() {
     return `<div class="entregador-card">
       <div class="entregador-info">
         <h4>${e.nome} <span style="font-size:.72rem;background:${e.ativo?'#dcfce7':'#fee2e2'};color:${e.ativo?'#166534':'#991b1b'};padding:2px 8px;border-radius:10px;">${e.ativo?'Ativo':'Inativo'}</span></h4>
-        <p>${e.telefone||''} · Fixo: ${fmt(e.valorFixoDiario||0)}/dia</p>
+        <p>${e.telefone||''} · Diária: ${fmt(e.valorFixoDiario||0)} · Mensal: ${fmt(e.salarioMensal||0)}</p>
       </div>
       <div class="entregador-stats">
         <div class="entregador-stat"><div class="val">${todayDeliveries.length}</div><div class="lbl">Entregas Hoje</div></div>
@@ -1759,6 +1765,7 @@ window.openEntregadorModal = function(id) {
   document.getElementById('entNome').value = e?.nome || '';
   document.getElementById('entTel').value = e?.telefone || '';
   document.getElementById('entValor').value = e?.valorFixoDiario || '';
+  document.getElementById('entSalarioMensal').value = e?.salarioMensal || '';
   document.getElementById('entAtivo').checked = e ? e.ativo !== false : true;
   document.getElementById('entId').value = id || '';
   openModal('modalEntregador');
@@ -1770,6 +1777,7 @@ window.saveEntregador = async function() {
     nome: document.getElementById('entNome').value.trim(),
     telefone: document.getElementById('entTel').value.trim(),
     valorFixoDiario: parseFloat(document.getElementById('entValor').value)||0,
+    salarioMensal: parseFloat(document.getElementById('entSalarioMensal').value)||0,
     ativo: document.getElementById('entAtivo').checked
   };
   if (!data.nome) { showToast('Informe o nome.','error'); return; }
@@ -1793,8 +1801,9 @@ window.showEntregadorRelatorio = function(id) {
     p.timestamp && new Date(p.timestamp).getMonth()===now.getMonth() && new Date(p.timestamp).getFullYear()===now.getFullYear()
   );
   const taxa = orders.reduce((s,p)=>s+(p.taxa||0),0);
-  const fixo = (e.valorFixoDiario||0) * new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
-  alert(`📊 Relatório Mensal — ${e.nome}\n\nEntregas: ${orders.length}\nTaxa coletada: ${fmt(taxa)}\nFixo mensal: ${fmt(fixo)}`);
+  const salarioMensal = e.salarioMensal || 0;
+  const diaria = e.valorFixoDiario || 0;
+  alert(`📊 Relatório Mensal — ${e.nome}\n\nEntregas este mês: ${orders.length}\nTaxa coletada: ${fmt(taxa)}\n\nSalário mensal fixo: ${fmt(salarioMensal)}\nDiária (Fri/Sáb/Dom + feriados): ${fmt(diaria)}/dia`);
 };
 
 function populateEntregadorDropdowns() {}
@@ -1927,6 +1936,27 @@ window.deleteFiado = async function(id) {
 };
 
 // ── FINANCEIRO ────────────────────────────────────────────────
+window.onDespCategoriaChange = function() {
+  const cat = document.getElementById('despCategoria').value;
+  if (cat === 'Diária Entregador') {
+    if (!document.getElementById('despDescricao').value) document.getElementById('despDescricao').value = 'Diária do entregador';
+    if (!document.getElementById('despValor').value) document.getElementById('despValor').value = '50';
+    if (!document.getElementById('despData').value) document.getElementById('despData').value = new Date().toISOString().slice(0,10);
+  }
+};
+
+window.lancaDiariaEntregador = async function() {
+  const hoje = new Date().toISOString().slice(0,10);
+  if (!confirm(`Lançar diária do entregador (R$50,00) para hoje (${fmtDateBr(hoje)})?`)) return;
+  await push(ref(db,'financeiro/despesas'), {
+    data: hoje,
+    categoria: 'Diária Entregador',
+    descricao: 'Diária do entregador',
+    valor: 50
+  });
+  showToast('Diária lançada! ✅', 'success');
+};
+
 window.saveDespesa = async function() {
   const data = document.getElementById('despData').value;
   const cat = document.getElementById('despCategoria').value;
@@ -2389,6 +2419,16 @@ window.openNewOrderModal = function() {
   document.getElementById('mnClienteDropdown').style.display='none';
   document.getElementById('mnItemDropdown').style.display='none';
   renderManualItems();
+  // Botões rápidos do cardápio
+  const catEl = document.getElementById('mnCatalogBtns');
+  if (catEl) {
+    catEl.innerHTML = PRATOS_LIST.map(pr => {
+      const dadosFb = cardapioData.pratos[pr.id] || {};
+      const nome = dadosFb.nome || pr.nome;
+      const preco = dadosFb.preco !== undefined ? dadosFb.preco : pr.preco;
+      return `<button class="btn btn-gray btn-sm" onclick="addItemFromCatalog('${nome.replace(/'/g,"\\'")}',${preco})" style="font-size:.75rem;padding:6px 10px;">${nome}${preco>0?' — '+fmt(preco):''}</button>`;
+    }).join('');
+  }
   openModal('modalNewOrder');
 };
 
