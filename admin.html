@@ -251,6 +251,12 @@ tr:hover td{background:#fafafa;}
 .entregador-stat{text-align:center;}
 .entregador-stat .val{font-size:1.1rem;font-weight:800;color:var(--red);}
 .entregador-stat .lbl{font-size:.65rem;color:var(--gray);text-transform:uppercase;}
+
+/* FIADO */
+.fiado-card{padding:12px 14px;border-radius:10px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;border:1px solid #e5e7eb;background:#f9fafb;}
+.fiado-card.atrasado{background:#fef2f2;border-color:#fca5a5;}
+.fiado-badge-ok{background:#dcfce7;color:#166534;padding:2px 10px;border-radius:20px;font-size:.72rem;font-weight:600;}
+.fiado-badge-late{background:#fee2e2;color:#991b1b;padding:2px 10px;border-radius:20px;font-size:.72rem;font-weight:700;}
 </style>
 </head>
 <body>
@@ -427,6 +433,17 @@ tr:hover td{background:#fafafa;}
     <!-- FINANCEIRO -->
     <div class="tab-content" id="tab-financeiro">
       <div class="section-hdr"><h2>💵 Financeiro</h2></div>
+
+      <!-- VALORES A RECEBER (FIADO) -->
+      <div class="card" style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+          <div class="card-title">📋 Valores a Receber — Fiado</div>
+          <button class="btn btn-primary btn-sm" onclick="openNovoFiadoAvulso()">+ Registrar Fiado</button>
+        </div>
+        <div id="fiadosResumo" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;"></div>
+        <div id="fiadosList"></div>
+      </div>
+
       <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:20px;">
         <div class="card">
           <div class="card-title" style="margin-bottom:14px;">Registrar Despesa</div>
@@ -617,7 +634,7 @@ tr:hover td{background:#fafafa;}
         </div>
         <div class="form-group"><label>Pagamento</label>
           <select id="mnPagto" class="form-control">
-            <option>Dinheiro</option><option>Pix</option><option>Cartão Débito</option><option>Cartão Crédito</option>
+            <option>Dinheiro</option><option>Pix</option><option>Cartão Débito</option><option>Cartão Crédito</option><option>Fiado</option>
           </select>
         </div>
       </div>
@@ -725,6 +742,25 @@ tr:hover td{background:#fafafa;}
   </div>
 </div>
 
+<!-- Fiado Modal -->
+<div class="modal-overlay" id="modalFiado">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header"><h3>💰 Registrar Fiado</h3><button class="modal-close" onclick="closeModal('modalFiado')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="fiadoPedidoId">
+      <div class="form-group"><label>Cliente</label><input type="text" id="fiadoClienteNome" class="form-control" placeholder="Nome do cliente"></div>
+      <div class="form-group"><label>Telefone</label><input type="text" id="fiadoClienteTelefone" class="form-control" placeholder="Telefone"></div>
+      <div class="form-group"><label>Valor (R$)</label><input type="number" id="fiadoValor" class="form-control" placeholder="0,00" step="0.01"></div>
+      <div class="form-group"><label>📅 Data prevista de pagamento *</label><input type="date" id="fiadoDataPrevista" class="form-control"></div>
+      <div class="form-group"><label>Observações</label><input type="text" id="fiadoObs" class="form-control" placeholder="Ex: vai pagar na sexta-feira"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-gray" onclick="closeModal('modalFiado')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveFiado()">💾 Salvar Fiado</button>
+    </div>
+  </div>
+</div>
+
 <!-- Estoque Modal -->
 <div class="modal-overlay" id="modalEstoque">
   <div class="modal" style="max-width:480px;">
@@ -818,6 +854,7 @@ let allEntregadores = {};
 let allFornecedores = {};
 let allEstoque = {};
 let allDespesas = {};
+let allFiados = {};
 let manualItems = [];
 let editItems = [];
 let pedidosFilter = 'todos';
@@ -844,7 +881,7 @@ const NAV_ITEMS = {
     { id:'pedidos',      icon:'📋', label:'Pedidos',    badge:'novos' },
     { id:'clientes',     icon:'👥', label:'Clientes' },
     { id:'entregadores', icon:'🏍️', label:'Entregadores' },
-    { id:'financeiro',   icon:'💵', label:'Financeiro' },
+    { id:'financeiro',   icon:'💵', label:'Financeiro', badge:'fiados' },
     { id:'estoque',      icon:'📦', label:'Estoque' },
     { id:'fornecedores', icon:'🏭', label:'Fornecedores' },
     { id:'cardapio',     icon:'🍽️', label:'Cardápio' },
@@ -913,7 +950,7 @@ window.showTab = function(id) {
   if (tab) tab.classList.add('active');
   if (nav) nav.classList.add('active');
   if (id === 'dashboard') renderDashboard();
-  if (id === 'financeiro') { renderDespesas(); renderDRE(); }
+  if (id === 'financeiro') { renderDespesas(); renderDRE(); renderFiados(); }
   if (id === 'relatorios') renderRelatorio();
   if (id === 'clientes') renderClientes();
   if (id === 'cardapio') renderCardapio();
@@ -947,6 +984,11 @@ function startListeners() {
   onValue(ref(db, 'financeiro/despesas'), snap => {
     allDespesas = snap.val() || {};
     if (document.getElementById('tab-financeiro').classList.contains('active')) { renderDespesas(); renderDRE(); }
+  });
+  onValue(ref(db, 'fiados'), snap => {
+    allFiados = snap.val() || {};
+    if (document.getElementById('tab-financeiro').classList.contains('active')) renderFiados();
+    updateFiadoBadge();
   });
 
   // ── CARDÁPIO LISTENERS ──
@@ -1531,6 +1573,37 @@ window.showClienteDetail = function(key) {
       <div><strong>${e.endereco||''}${e.numero ? ', '+e.numero : ''}</strong>${e.bairro?' — '+e.bairro:''}${e.refLocal?'<br><span style="color:var(--gray);font-size:.75rem;">Ref: '+e.refLocal+'</span>':''}</div>
     </div>`).join('');
   })();
+  // Fiados do cliente
+  const today = new Date().toISOString().slice(0,10);
+  const phone = (c.telefone||'').replace(/\D/g,'');
+  const fiadosPendentes = Object.entries(allFiados).filter(([,f]) =>
+    f.status !== 'pago' && (f.clienteKey === key || (phone && (f.clienteTelefone||'').replace(/\D/g,'') === phone))
+  );
+  const totalFiado = fiadosPendentes.reduce((s,[,f])=>s+(f.valor||0),0);
+  const fiadoHtml = fiadosPendentes.length ? `
+    <div style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div class="card-title" style="color:#991b1b;">💰 Fiados em Aberto</div>
+        <span style="font-weight:800;color:#991b1b;">${fmt(totalFiado)}</span>
+      </div>
+      ${fiadosPendentes.map(([id,f]) => {
+        const overdue = f.dataPrevista && f.dataPrevista < today;
+        const daysLate = overdue ? Math.max(1, Math.floor((new Date(today) - new Date(f.dataPrevista)) / 86400000)) : 0;
+        return `<div style="padding:9px 12px;background:${overdue?'#fef2f2':'#f9fafb'};border-radius:8px;margin-bottom:6px;border:1px solid ${overdue?'#fca5a5':'#e5e7eb'};">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <div style="font-size:.82rem;">
+              <strong>${fmt(f.valor)}</strong>${f.pedidoNum?` · Pedido #${f.pedidoNum}`:''}
+              ${f.obs?`<br><span style="color:var(--gray);">📝 ${f.obs}</span>`:''}
+              <br>${overdue
+                ? `<span style="color:#991b1b;font-weight:700;font-size:.75rem;">⚠️ ${daysLate} dia${daysLate!==1?'s':''} em atraso</span>`
+                : `<span style="color:#166534;font-size:.75rem;">📅 Pagar até ${fmtDateBr(f.dataPrevista)}</span>`}
+            </div>
+            <button class="btn btn-green btn-sm" style="flex-shrink:0" onclick="darBaixaFiado('${id}').then(()=>showClienteDetail('${key}'))">✅ Baixa</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  ` : '';
   content.innerHTML = `
     <div style="margin-bottom:14px;">
       <h3 style="font-size:1.1rem;font-weight:800">${c.nome}</h3>
@@ -1538,6 +1611,7 @@ window.showClienteDetail = function(key) {
       <div class="card-title" style="margin-bottom:6px;">Endereços Cadastrados</div>
       ${enderecosHtml}
     </div>
+    ${fiadoHtml}
     <div class="stat-cards" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
       <div class="stat-card red"><div class="stat-val" style="font-size:1.2rem">${fmt(c.totalGasto)}</div><div class="stat-lbl">Total Gasto</div></div>
       <div class="stat-card blue"><div class="stat-val" style="font-size:1.2rem">${c.totalPedidos||0}</div><div class="stat-lbl">Total Pedidos</div></div>
@@ -1680,6 +1754,133 @@ window.showEntregadorRelatorio = function(id) {
 };
 
 function populateEntregadorDropdowns() {}
+
+// ── FIADO ───────────────────────────────────────────────────────
+function fmtDateBr(iso) {
+  if (!iso) return '—';
+  const [y,m,d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function updateFiadoBadge() {
+  const today = new Date().toISOString().slice(0,10);
+  const overdue = Object.values(allFiados).filter(f => f.status !== 'pago' && f.dataPrevista && f.dataPrevista < today).length;
+  const badge = document.getElementById('badge-fiados');
+  if (badge) { badge.textContent = overdue; badge.style.display = overdue > 0 ? '' : 'none'; }
+}
+
+function renderFiados() {
+  const el = document.getElementById('fiadosList');
+  const resumoEl = document.getElementById('fiadosResumo');
+  if (!el) return;
+  const today = new Date().toISOString().slice(0,10);
+  const pendentes = Object.entries(allFiados).filter(([,f]) => f.status !== 'pago');
+  const totalPendente = pendentes.reduce((s,[,f])=>s+(f.valor||0),0);
+  const atrasados = pendentes.filter(([,f]) => f.dataPrevista && f.dataPrevista < today);
+  const totalAtrasado = atrasados.reduce((s,[,f])=>s+(f.valor||0),0);
+  if (resumoEl) {
+    resumoEl.innerHTML = `
+      <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:10px 16px;flex:1;min-width:140px;">
+        <div style="font-size:.72rem;color:#92400e;text-transform:uppercase;font-weight:700;">Total a Receber</div>
+        <div style="font-size:1.15rem;font-weight:800;color:#92400e;">${fmt(totalPendente)}</div>
+        <div style="font-size:.72rem;color:#92400e;">${pendentes.length} fiado${pendentes.length!==1?'s':''} em aberto</div>
+      </div>
+      ${atrasados.length ? `<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:10px 16px;flex:1;min-width:140px;">
+        <div style="font-size:.72rem;color:#991b1b;text-transform:uppercase;font-weight:700;">⚠️ Em Atraso</div>
+        <div style="font-size:1.15rem;font-weight:800;color:#991b1b;">${fmt(totalAtrasado)}</div>
+        <div style="font-size:.72rem;color:#991b1b;">${atrasados.length} fiado${atrasados.length!==1?'s':''} vencido${atrasados.length!==1?'s':''}</div>
+      </div>` : ''}
+    `;
+  }
+  if (!pendentes.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">✅</div><p>Nenhum valor em aberto. Tudo em dia!</p></div>';
+    return;
+  }
+  const sorted = pendentes.sort((a,b) => (a[1].dataPrevista||'9999') > (b[1].dataPrevista||'9999') ? 1 : -1);
+  el.innerHTML = sorted.map(([id, f]) => {
+    const overdue = f.dataPrevista && f.dataPrevista < today;
+    const daysLate = overdue ? Math.max(1, Math.floor((new Date(today) - new Date(f.dataPrevista)) / 86400000)) : 0;
+    return `<div class="fiado-card${overdue?' atrasado':''}">
+      <div style="flex:1;min-width:160px;">
+        <div style="font-weight:700;font-size:.9rem;">${f.clienteNome||'—'} <span style="font-weight:400;color:var(--gray);font-size:.78rem;">${f.clienteTelefone||''}</span></div>
+        <div style="font-size:.77rem;color:var(--gray);margin-top:2px;">${f.pedidoNum?`Pedido #${f.pedidoNum} · `:''}Registrado em ${fmtDate(f.dataCriacao)}${f.obs?`<br>📝 ${f.obs}`:''}</div>
+        <div style="margin-top:5px;">
+          ${overdue
+            ? `<span class="fiado-badge-late">⚠️ ${daysLate} dia${daysLate!==1?'s':''} em atraso</span>`
+            : `<span class="fiado-badge-ok">📅 Pagar até ${fmtDateBr(f.dataPrevista)}</span>`}
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <div style="font-size:1.1rem;font-weight:800;color:var(--red);min-width:70px;text-align:right;">${fmt(f.valor)}</div>
+        <button class="btn btn-green btn-sm" onclick="darBaixaFiado('${id}')">✅ Baixa</button>
+        <button class="btn btn-gray btn-sm" onclick="deleteFiado('${id}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.openFiadoModal = function(pedidoId, nome, telefone, valor, pedidoNum) {
+  document.getElementById('fiadoPedidoId').value = pedidoId || '';
+  document.getElementById('fiadoClienteNome').value = nome || '';
+  document.getElementById('fiadoClienteTelefone').value = telefone || '';
+  document.getElementById('fiadoValor').value = valor || '';
+  document.getElementById('fiadoObs').value = pedidoNum ? `Pedido #${pedidoNum}` : '';
+  const d = new Date(); d.setDate(d.getDate() + 7);
+  document.getElementById('fiadoDataPrevista').value = d.toISOString().slice(0,10);
+  openModal('modalFiado');
+};
+
+window.openNovoFiadoAvulso = function() {
+  document.getElementById('fiadoPedidoId').value = '';
+  document.getElementById('fiadoClienteNome').value = '';
+  document.getElementById('fiadoClienteTelefone').value = '';
+  document.getElementById('fiadoValor').value = '';
+  document.getElementById('fiadoObs').value = '';
+  const d = new Date(); d.setDate(d.getDate() + 7);
+  document.getElementById('fiadoDataPrevista').value = d.toISOString().slice(0,10);
+  openModal('modalFiado');
+};
+
+window.saveFiado = async function() {
+  const dataPrevista = document.getElementById('fiadoDataPrevista').value;
+  const valor = parseFloat(document.getElementById('fiadoValor').value) || 0;
+  const nome = document.getElementById('fiadoClienteNome').value.trim();
+  if (!nome) { showToast('Informe o nome do cliente.','error'); return; }
+  if (!valor) { showToast('Informe o valor do fiado.','error'); return; }
+  if (!dataPrevista) { showToast('Informe a data prevista de pagamento.','error'); return; }
+  const pedidoId = document.getElementById('fiadoPedidoId').value;
+  const pedido = pedidoId ? allPedidos[pedidoId] : null;
+  const tel = document.getElementById('fiadoClienteTelefone').value.trim();
+  const fiado = {
+    clienteKey: tel ? 'tel_' + tel.replace(/\D/g,'') : '',
+    clienteNome: nome,
+    clienteTelefone: tel,
+    pedidoId: pedidoId || '',
+    pedidoNum: pedido?.num || '',
+    valor,
+    dataCriacao: Date.now(),
+    dataPrevista,
+    obs: document.getElementById('fiadoObs').value.trim(),
+    status: 'pendente'
+  };
+  await push(ref(db, 'fiados'), fiado);
+  closeModal('modalFiado');
+  showToast('Fiado registrado! 💰', 'success');
+};
+
+window.darBaixaFiado = async function(id) {
+  const f = allFiados[id];
+  if (!f) return;
+  if (!confirm(`Confirmar pagamento de ${fmt(f.valor||0)} de ${f.clienteNome||'?'}?`)) return;
+  await update(ref(db, `fiados/${id}`), { status: 'pago', dataPagamento: Date.now() });
+  showToast('Fiado quitado! ✅', 'success');
+};
+
+window.deleteFiado = async function(id) {
+  if (!confirm('Excluir este registro de fiado?')) return;
+  await remove(ref(db, `fiados/${id}`));
+  showToast('Fiado removido.', 'warn');
+};
 
 // ── FINANCEIRO ────────────────────────────────────────────────
 window.saveDespesa = async function() {
@@ -2222,9 +2423,12 @@ window.saveManualOrder = async function() {
     obs: document.getElementById('mnObs').value.trim(),
     items: manualItems, subtotal, taxa, total, status:'novo'
   };
-  await push(ref(db,'pedidos'), order);
+  const pedidoRef = await push(ref(db,'pedidos'), order);
   closeModal('modalNewOrder');
   showToast('Pedido criado!');
+  if (order.pagto === 'Fiado') {
+    openFiadoModal(pedidoRef.key, nome, tel, total, order.num);
+  }
 };
 
 // ── EDIT ORDER ─────────────────────────────────────────────────
