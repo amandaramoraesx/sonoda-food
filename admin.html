@@ -2513,9 +2513,9 @@ window.quickWhatsApp = function(id) {
   if (!p || !p.telefone) return;
   const msgs = {
     novo:    `Olá ${p.nome}! 🍱 Recebemos seu pedido #${p.num||''} e já estamos analisando. Em breve confirmaremos!`,
-    preparo: `Olá ${p.nome}! ✅ Seu pedido #${p.num||''} foi confirmado e está sendo preparado com carinho!`,
-    pronto:  `Olá ${p.nome}! 🎉 Seu pedido #${p.num||''} está pronto!${p.tipo==='retirada' ? ' Pode vir retirar.' : ' Logo sairá para entrega.'}`,
-    entrega: `Olá ${p.nome}! 🛵 Seu pedido #${p.num||''} saiu para entrega e chegará em breve!`,
+    preparo: `Olá, ${p.nome}! O seu pedido foi confirmado e será preparado com muito carinho. 🍱`,
+    pronto:  `Olá, ${p.nome}! 🎉 Seu pedido #${p.num||''} está pronto!${p.tipo==='retirada' ? ' Pode vir retirar.' : ' Logo sairá para entrega.'}`,
+    entrega: `Olá, ${p.nome}! Passando para avisar que o seu pedido saiu para entrega e logo estará na sua porta! 🛵`,
   };
   const defaultMsg = `Olá ${p.nome}! 🍱 Sonoda Food — pedido #${p.num||''}.`;
   openWhatsAppPopup(p.telefone, msgs[p.status] || defaultMsg);
