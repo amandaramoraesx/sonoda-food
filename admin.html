@@ -1287,6 +1287,7 @@ function buildStatusBtns(id, p) {
     btns += `<button class="btn btn-gray btn-sm" onclick="updateStatus('${id}','pronto')" title="Desfazer Saiu p/ Entrega">↩️ Voltar p/ Pronto</button>`;
     btns += `<button class="btn btn-green btn-sm" onclick="updateStatus('${id}','entregue')">📬 Entregue</button>`;
   }
+  if (s!=='entregue'&&s!=='cancelado'&&p.telefone) btns += `<button class="btn btn-sm btn-green" onclick="quickWhatsApp('${id}')" style="background:#25D366;color:#fff;" title="Enviar mensagem WhatsApp">📱 WhatsApp</button>`;
   if (s!=='entregue'&&s!=='cancelado') btns += `<button class="btn btn-gray btn-sm" onclick="updateStatus('${id}','cancelado')" style="margin-left:auto">❌ Cancelar</button>`;
   btns += `<button class="btn btn-sm" onclick="deletePedido('${id}')" style="margin-left:${(s==='entregue'||s==='cancelado')?'auto':'4px'};background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;">🗑️ Excluir</button>`;
   return btns;
@@ -2507,6 +2508,29 @@ window.toggleOfertaAdmin = function(id) {
 };
 
 // ── WHATSAPP / Z-API ───────────────────────────────────────────
+window.quickWhatsApp = function(id) {
+  const p = allPedidos[id];
+  if (!p || !p.telefone) return;
+  const msgs = {
+    novo:    `Olá ${p.nome}! 🍱 Recebemos seu pedido #${p.num||''} e já estamos analisando. Em breve confirmaremos!`,
+    preparo: `Olá ${p.nome}! ✅ Seu pedido #${p.num||''} foi confirmado e está sendo preparado com carinho!`,
+    pronto:  `Olá ${p.nome}! 🎉 Seu pedido #${p.num||''} está pronto!${p.tipo==='retirada' ? ' Pode vir retirar.' : ' Logo sairá para entrega.'}`,
+    entrega: `Olá ${p.nome}! 🛵 Seu pedido #${p.num||''} saiu para entrega e chegará em breve!`,
+  };
+  const defaultMsg = `Olá ${p.nome}! 🍱 Sonoda Food — pedido #${p.num||''}.`;
+  openWhatsAppPopup(p.telefone, msgs[p.status] || defaultMsg);
+};
+
+function openWhatsAppPopup(phone, message) {
+  const clean = (phone||'').replace(/\D/g,'');
+  if (!clean) return;
+  const url = `https://wa.me/55${clean}?text=${encodeURIComponent(message)}`;
+  const w = 480, h = 680;
+  const left = Math.max(0, window.screen.width  - w - 16);
+  const top  = Math.max(0, window.screen.height - h - 60);
+  window.open(url, 'wa_popup', `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+}
+
 async function sendWhatsApp(phone, message) {
   const clean = (phone||'').replace(/\D/g,'');
   if (!clean) return;
@@ -2520,16 +2544,13 @@ async function sendWhatsApp(phone, message) {
         { method:'POST', headers, body: JSON.stringify({ phone:'55'+clean, message }) }
       );
       if (res.ok) { showToast('📱 WhatsApp enviado!', 'success'); return; }
-      showToast('Z-API: erro ao enviar — verifique as credenciais.', 'warn');
+      showToast('Z-API: erro — abrindo popup.', 'warn');
     } catch(e) {
-      showToast('Z-API: falha de conexão.', 'warn');
+      showToast('Z-API: falha — abrindo popup.', 'warn');
     }
-    // Fallback se API falhar
-    window.open(`https://wa.me/55${clean}?text=${encodeURIComponent(message)}`, '_blank');
-  } else {
-    // Sem API configurada — comportamento original
-    window.open(`https://wa.me/55${clean}?text=${encodeURIComponent(message)}`, '_blank');
   }
+  // Sem Z-API ou se falhar: abre popup pequeno no canto (não sai da página)
+  openWhatsAppPopup(phone, message);
 }
 
 function updateZapiStatusBadge() {
