@@ -2815,6 +2815,7 @@ function renderPratoRow(p) {
   const nome = dadosFb.nome || p.nome;
   const preco = dadosFb.preco !== undefined ? dadosFb.preco : p.preco;
 
+  const descricao = dadosFb.descricao || p.descricao || '';
   return `<div style="background:#f8f9fa;border-radius:10px;padding:14px;margin-bottom:8px;">
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
       <div style="flex:1;min-width:160px;">
@@ -2830,6 +2831,11 @@ function renderPratoRow(p) {
         <button onclick="salvarPratoDados('${p.id}')"
           style="background:#2980b9;color:#fff;border:none;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:.82rem;font-weight:700;">💾 Salvar</button>
       </div>
+    </div>
+    <div style="margin-top:8px;">
+      <textarea id="desc-${p.id}" rows="2" placeholder="Descrição do prato..."
+        style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:7px 10px;font-size:.82rem;background:#fff;resize:vertical;">${descricao}</textarea>
+    </div>
     <button onclick="toggleEsgotadoAdmin('${p.id}')"
       style="border:none;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:.82rem;font-weight:700;
       background:${esgotado ? '#fee2e2' : '#dcfce7'};color:${esgotado ? '#c0392b' : '#166534'};">
@@ -2853,9 +2859,12 @@ window.salvarPratoDados = function(id) {
     return;
   }
   const preco = precoVal;
+  const descEl = document.getElementById('desc-' + id);
+  const descricao = descEl ? descEl.value.trim() : null;
   const updates = {};
   if (nome) updates['pratos/' + id + '/nome'] = nome;
   if (preco !== null) updates['pratos/' + id + '/preco'] = preco;
+  if (descricao !== null) updates['pratos/' + id + '/descricao'] = descricao;
   update(ref(db, '/'), updates)
     .then(() => showToast('✅ Prato "' + (nome || id) + '" salvo!'))
     .catch(() => showToast('Erro ao salvar', 'error'));
