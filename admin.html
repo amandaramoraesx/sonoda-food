@@ -1467,10 +1467,20 @@ window.showClienteDetail = function(key) {
   const monthOrders = orders.filter(o => { const d=new Date(o.timestamp); return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear(); });
   const monthGasto = monthOrders.reduce((s,o)=>s+(o.total||0),0);
   const monthName = now.toLocaleDateString('pt-BR',{month:'long'});
+  const enderecosHtml = (() => {
+    const lista = Array.isArray(c.enderecos) ? c.enderecos.filter(e => e.endereco||e.bairro) : [];
+    if (!lista.length) return `<p style="font-size:.8rem;color:var(--gray);">Nenhum endereço cadastrado.</p>`;
+    return lista.map((e,i) => `<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;background:#f9fafb;border-radius:8px;margin-bottom:5px;font-size:.82rem;">
+      <span style="color:var(--red);font-size:.9rem;">📍</span>
+      <div><strong>${e.endereco||''}${e.numero ? ', '+e.numero : ''}</strong>${e.bairro?' — '+e.bairro:''}${e.refLocal?'<br><span style="color:var(--gray);font-size:.75rem;">Ref: '+e.refLocal+'</span>':''}</div>
+    </div>`).join('');
+  })();
   content.innerHTML = `
     <div style="margin-bottom:14px;">
       <h3 style="font-size:1.1rem;font-weight:800">${c.nome}</h3>
-      <p style="font-size:.8rem;color:var(--gray)">${c.telefone} · ${c.endereco||''} ${c.numero||''} · ${c.bairro||''}</p>
+      <p style="font-size:.8rem;color:var(--gray);margin-bottom:10px;">${c.telefone}</p>
+      <div class="card-title" style="margin-bottom:6px;">Endereços Cadastrados</div>
+      ${enderecosHtml}
     </div>
     <div class="stat-cards" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
       <div class="stat-card red"><div class="stat-val" style="font-size:1.2rem">${fmt(c.totalGasto)}</div><div class="stat-lbl">Total Gasto</div></div>
@@ -1489,6 +1499,18 @@ window.showClienteDetail = function(key) {
 };
 
 // ── AUTO SAVE CLIENTE ──────────────────────────────────────────
+function buildEnderecoKey(e) {
+  return ((e.endereco||'') + (e.numero||'') + (e.bairro||'')).toLowerCase().replace(/\s/g,'');
+}
+
+function mergeEnderecos(existing, novoEnd) {
+  const lista = Array.isArray(existing) ? [...existing] : (existing ? [existing] : []);
+  if (!novoEnd.endereco && !novoEnd.bairro) return lista;
+  const novaKey = buildEnderecoKey(novoEnd);
+  if (!lista.some(e => buildEnderecoKey(e) === novaKey)) lista.push(novoEnd);
+  return lista;
+}
+
 // Salva dados básicos do cliente sem alterar totais (chamado no novo pedido)
 async function saveClienteBasicInfo(order) {
   if (!order || !order.telefone) return;
@@ -1496,15 +1518,15 @@ async function saveClienteBasicInfo(order) {
   if (!phone) return;
   const key = 'tel_' + phone;
   const existing = allClientes[key];
+  const novoEnd = { endereco: order.endereco||'', numero: order.numero||'', bairro: order.bairro||'', refLocal: order.refLocal||'' };
+  const enderecos = mergeEnderecos(existing && existing.enderecos, novoEnd);
   const updates = {
     nome: order.nome || (existing && existing.nome) || '',
     telefone: order.telefone,
-    endereco: order.endereco || (existing && existing.endereco) || '',
-    numero: order.numero || (existing && existing.numero) || '',
-    bairro: order.bairro || (existing && existing.bairro) || '',
+    bairro: novoEnd.bairro || (existing && existing.bairro) || '',
+    enderecos,
     ultimoPedido: order.timestamp || Date.now()
   };
-  // Se cliente novo, inicializa totais
   if (!existing) { updates.totalGasto = 0; updates.totalPedidos = 0; }
   await update(ref(db, `clientes/${key}`), updates);
 }
@@ -1515,11 +1537,13 @@ async function autoSaveCliente(order) {
   if (!phone) return;
   const key = 'tel_' + phone;
   const existing = allClientes[key] || {};
+  const novoEnd = { endereco: order.endereco||'', numero: order.numero||'', bairro: order.bairro||'', refLocal: order.refLocal||'' };
+  const enderecos = mergeEnderecos(existing.enderecos, novoEnd);
   await set(ref(db, `clientes/${key}`), {
     nome: order.nome || existing.nome || '',
     telefone: order.telefone,
-    endereco: order.endereco || existing.endereco || '',
-    bairro: order.bairro || existing.bairro || '',
+    bairro: novoEnd.bairro || existing.bairro || '',
+    enderecos,
     totalGasto: (existing.totalGasto || 0) + (order.total || 0),
     totalPedidos: (existing.totalPedidos || 0) + 1,
     ultimoPedido: order.timestamp || Date.now()
