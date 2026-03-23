@@ -548,6 +548,24 @@ tr:hover td{background:#fafafa;}
         </div>
       </div>
 
+      <!-- WHATSAPP AUTOMÁTICO -->
+      <div class="card" style="margin-bottom:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+          <div class="card-title" style="margin-bottom:0;">📱 WhatsApp Automático (Z-API)</div>
+          <span id="zapiStatusBadge" style="font-size:.75rem;padding:4px 12px;border-radius:20px;background:#f3f4f6;color:#6c757d;font-weight:600;">⚪ Não configurado</span>
+        </div>
+        <div class="form-row-3">
+          <div class="form-group"><label>Instance ID</label><input type="text" id="cfgZapiInstance" class="form-control" placeholder="Ex: 3D521FD6B17C..."></div>
+          <div class="form-group"><label>Token da Instância</label><input type="text" id="cfgZapiToken" class="form-control" placeholder="Token gerado no painel Z-API"></div>
+          <div class="form-group"><label>Client-Token (Security)</label><input type="text" id="cfgZapiClientToken" class="form-control" placeholder="Opcional — painel Z-API"></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px;">
+          <button class="btn btn-green btn-sm" onclick="salvarZapiAdmin()">💾 Salvar</button>
+          <button class="btn btn-blue btn-sm" onclick="testarZapi()">📤 Testar Envio</button>
+          <span style="font-size:.75rem;color:var(--gray);">Quando configurado, mensagens são enviadas automaticamente — sem abrir nenhuma aba.</span>
+        </div>
+      </div>
+
       <!-- TAXAS DE ENTREGA -->
       <div class="card" style="margin-bottom:20px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
@@ -811,7 +829,7 @@ let chartBar = null;
 let chartDoughnut = null;
 let knownPedidoIds = new Set();
 let notifications = [];
-let cardapioData = { lojaFechada: false, esgotados: {}, ofertas: {}, pratos: {}, bairros: [], tempoEntrega: '', tempoRetirada: '', pedidoMinimo: 30, destaqueDia: '' };
+let cardapioData = { lojaFechada: false, esgotados: {}, ofertas: {}, pratos: {}, bairros: [], tempoEntrega: '', tempoRetirada: '', pedidoMinimo: 30, destaqueDia: '', zapiInstance: '', zapiToken: '', zapiClientToken: '' };
 let entregadorMonthModal = null;
 
 const USERS = {
@@ -959,6 +977,18 @@ function startListeners() {
   });
   onValue(ref(db, 'config/destaqueDia'), snap => {
     if (snap.val() !== null) { cardapioData.destaqueDia = snap.val() || ''; document.getElementById('cfgDestaque') && (document.getElementById('cfgDestaque').value = snap.val() || ''); }
+  });
+  onValue(ref(db, 'config/zapi'), snap => {
+    const v = snap.val() || {};
+    cardapioData.zapiInstance = v.instance || '';
+    cardapioData.zapiToken = v.token || '';
+    cardapioData.zapiClientToken = v.clientToken || '';
+    updateZapiStatusBadge();
+    if (document.getElementById('cfgZapiInstance')) {
+      document.getElementById('cfgZapiInstance').value = v.instance || '';
+      document.getElementById('cfgZapiToken').value = v.token || '';
+      document.getElementById('cfgZapiClientToken').value = v.clientToken || '';
+    }
   });
   onValue(ref(db, 'bairros'), snap => {
     const d = snap.val();
@@ -1278,9 +1308,8 @@ window.deletePedido = async function(id) {
 window.handleSaiuEntrega = function(id) {
   const p = allPedidos[id];
   update(ref(db, `pedidos/${id}`), { status: 'entrega' });
-  const msg = `*Passando para avisar que o seu pedido saiu para entrega, em breve estar\u00e1 na sua porta.*`;
-  const phone = (p.telefone||'').replace(/\D/g,'');
-  if (phone) window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`,'_blank');
+  const msg = `*Passando para avisar que o seu pedido saiu para entrega, em breve estará na sua porta.*`;
+  if (p.telefone) sendWhatsApp(p.telefone, msg);
   showToast('Pedido marcado como saiu para entrega!');
 };
 
@@ -1292,11 +1321,9 @@ window.aceitarPedido = async function(id) {
   showToast(`✅ Pedido #${p.num||''} aceito!`, 'success');
   printOrder(id);
   saveClienteBasicInfo(p); // garante que cliente fica salvo ao aceitar
-  // Avisar cliente via WhatsApp com resumo do pedido
-  const phone = (p.telefone||'').replace(/\D/g,'');
-  if (phone) {
-    const msg = `*O seu pedido foi confirmado! Vamos preparar com muito carinho.*`;
-    window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+  if (p.telefone) {
+    const msg = `*O seu pedido foi confirmado! Vamos preparar com muito carinho.* 🍱`;
+    sendWhatsApp(p.telefone, msg);
   }
 };
 
@@ -1436,8 +1463,7 @@ window.handleSaiuEntregaEnt = function(id) {
   const p = allPedidos[id];
   update(ref(db, `pedidos/${id}`), { status:'entrega' });
   const msg = `Olá ${p.nome}! 🛵 Seu pedido da Sonoda já saiu para entrega! Em breve estará na sua porta. Obrigado pela preferência! 🍱`;
-  const phone = (p.telefone||'').replace(/\D/g,'');
-  if (phone) window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`,'_blank');
+  if (p.telefone) sendWhatsApp(p.telefone, msg);
   showToast('Pedido saiu para entrega!');
 };
 
@@ -2478,6 +2504,75 @@ window.toggleOfertaAdmin = function(id) {
   set(ref(db, 'ofertas/' + id), !atual)
     .then(() => showToast(!atual ? '⭐ Oferta ativada!' : 'Oferta removida'))
     .catch(() => showToast('Erro', 'error'));
+};
+
+// ── WHATSAPP / Z-API ───────────────────────────────────────────
+async function sendWhatsApp(phone, message) {
+  const clean = (phone||'').replace(/\D/g,'');
+  if (!clean) return;
+  const { zapiInstance, zapiToken, zapiClientToken } = cardapioData;
+  if (zapiInstance && zapiToken) {
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (zapiClientToken) headers['Client-Token'] = zapiClientToken;
+      const res = await fetch(
+        `https://api.z-api.io/instances/${zapiInstance}/token/${zapiToken}/send-text`,
+        { method:'POST', headers, body: JSON.stringify({ phone:'55'+clean, message }) }
+      );
+      if (res.ok) { showToast('📱 WhatsApp enviado!', 'success'); return; }
+      showToast('Z-API: erro ao enviar — verifique as credenciais.', 'warn');
+    } catch(e) {
+      showToast('Z-API: falha de conexão.', 'warn');
+    }
+    // Fallback se API falhar
+    window.open(`https://wa.me/55${clean}?text=${encodeURIComponent(message)}`, '_blank');
+  } else {
+    // Sem API configurada — comportamento original
+    window.open(`https://wa.me/55${clean}?text=${encodeURIComponent(message)}`, '_blank');
+  }
+}
+
+function updateZapiStatusBadge() {
+  const el = document.getElementById('zapiStatusBadge');
+  if (!el) return;
+  if (cardapioData.zapiInstance && cardapioData.zapiToken) {
+    el.textContent = '🟢 Configurado — envio automático ativo';
+    el.style.background = '#dcfce7'; el.style.color = '#166534';
+  } else {
+    el.textContent = '⚪ Não configurado';
+    el.style.background = '#f3f4f6'; el.style.color = '#6c757d';
+  }
+}
+
+window.salvarZapiAdmin = function() {
+  const instance = document.getElementById('cfgZapiInstance').value.trim();
+  const token = document.getElementById('cfgZapiToken').value.trim();
+  const clientToken = document.getElementById('cfgZapiClientToken').value.trim();
+  if (!instance || !token) { showToast('Informe Instance ID e Token.', 'error'); return; }
+  set(ref(db, 'config/zapi'), { instance, token, clientToken })
+    .then(() => showToast('📱 Z-API configurado! Mensagens serão enviadas automaticamente.'))
+    .catch(() => showToast('Erro ao salvar.', 'error'));
+};
+
+window.testarZapi = async function() {
+  const instance = document.getElementById('cfgZapiInstance').value.trim();
+  const token = document.getElementById('cfgZapiToken').value.trim();
+  const clientToken = document.getElementById('cfgZapiClientToken').value.trim();
+  const phone = prompt('Informe o número para teste (com DDD, sem +55):');
+  if (!phone) return;
+  const clean = phone.replace(/\D/g,'');
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (clientToken) headers['Client-Token'] = clientToken;
+    const res = await fetch(
+      `https://api.z-api.io/instances/${instance}/token/${token}/send-text`,
+      { method:'POST', headers, body: JSON.stringify({ phone:'55'+clean, message:'✅ Teste de mensagem automática — Sonoda Food Admin' }) }
+    );
+    if (res.ok) showToast('✅ Mensagem de teste enviada com sucesso!', 'success');
+    else { const err = await res.json(); showToast('Erro: ' + (err.error || res.status), 'error'); }
+  } catch(e) {
+    showToast('Falha ao conectar na Z-API: ' + e.message, 'error');
+  }
 };
 
 // ── TIMER REFRESH ──────────────────────────────────────────────
