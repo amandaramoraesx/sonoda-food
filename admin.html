@@ -327,6 +327,7 @@ tr:hover td{background:#fafafa;}
         <span class="chip" onclick="filterPedidos('pronto',this)">Prontos</span>
         <span class="chip" onclick="filterPedidos('entrega',this)">Saiu p/ Entrega</span>
         <span class="chip" onclick="filterPedidos('entregue',this)">Entregues</span>
+        <span class="chip" onclick="filterPedidos('retirada',this)">🏪 Retirada</span>
       </div>
       <div id="pedidosList"></div>
     </div>
@@ -614,15 +615,22 @@ tr:hover td{background:#fafafa;}
       </div>
       <div class="form-group"><label>Observações</label><textarea id="mnObs" class="form-control" rows="2"></textarea></div>
       <hr style="margin:16px 0;">
-      <div class="card-title" style="margin-bottom:10px;">Itens do Pedido</div>
+      <div class="card-title" style="margin-bottom:8px;">Itens do Pedido</div>
       <div id="mnItemsList"></div>
-      <div class="form-row-3">
-        <div class="form-group"><label>Item</label><input type="text" id="mnItemName" class="form-control" placeholder="Nome do item"></div>
-        <div class="form-group"><label>Qtd</label><input type="number" id="mnItemQty" class="form-control" value="1" min="1"></div>
-        <div class="form-group"><label>Preço</label><input type="number" id="mnItemPrice" class="form-control" placeholder="0.00" step="0.01"></div>
+      <div style="background:#f9fafb;border-radius:10px;padding:12px;margin-bottom:10px;">
+        <div class="card-title" style="margin-bottom:8px;font-size:.72rem;">📋 Selecionar do Cardápio (clique para adicionar)</div>
+        <div id="mnCatalogBtns" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;"></div>
       </div>
-      <div class="form-group"><label>Sabor/Complemento</label><input type="text" id="mnItemSabor" class="form-control" placeholder="Opcional"></div>
-      <button class="btn btn-gray btn-sm" onclick="addManualItem()">+ Adicionar Item</button>
+      <div style="background:#f0f4ff;border-radius:10px;padding:12px;margin-bottom:10px;">
+        <div class="card-title" style="margin-bottom:8px;font-size:.72rem;">➕ Adicionar item manualmente</div>
+        <div class="form-row-3">
+          <div class="form-group"><label>Item</label><input type="text" id="mnItemName" class="form-control" placeholder="Nome do item"></div>
+          <div class="form-group"><label>Qtd</label><input type="number" id="mnItemQty" class="form-control" value="1" min="1"></div>
+          <div class="form-group"><label>Preço</label><input type="number" id="mnItemPrice" class="form-control" placeholder="0.00" step="0.01"></div>
+        </div>
+        <div class="form-group"><label>Sabor/Complemento</label><input type="text" id="mnItemSabor" class="form-control" placeholder="Opcional"></div>
+        <button class="btn btn-gray btn-sm" onclick="addManualItem()">+ Adicionar Item</button>
+      </div>
       <div style="margin-top:14px;text-align:right;font-size:.88rem;">
         Subtotal: <strong id="mnSubtotal">R$0,00</strong> | Taxa: <strong id="mnTaxaVal">R$0,00</strong> | Total: <strong id="mnTotal" style="color:var(--red)">R$0,00</strong>
       </div>
@@ -630,6 +638,50 @@ tr:hover td{background:#fafafa;}
     <div class="modal-footer">
       <button class="btn btn-gray" onclick="closeModal('modalNewOrder')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveManualOrder()">Salvar Pedido</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Order Modal -->
+<div class="modal-overlay" id="modalEditOrder">
+  <div class="modal">
+    <div class="modal-header"><h3>✏️ Editar Pedido</h3><button class="modal-close" onclick="closeModal('modalEditOrder')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="editOrderId">
+      <div class="form-row">
+        <div class="form-group"><label>Forma de Pagamento</label>
+          <select id="editPagto" class="form-control">
+            <option>Dinheiro</option><option>Pix</option><option>Cartão Débito</option><option>Cartão Crédito</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Tipo de Pedido</label>
+          <select id="editTipo" class="form-control">
+            <option value="entrega">Entrega</option><option value="retirada">Retirada</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>Observações</label><textarea id="editObs" class="form-control" rows="2"></textarea></div>
+      <hr style="margin:14px 0;">
+      <div class="card-title" style="margin-bottom:10px;">Itens do Pedido</div>
+      <div id="editItemsList"></div>
+      <div style="background:#f9fafb;border-radius:8px;padding:12px;margin-top:10px;">
+        <div class="card-title" style="margin-bottom:8px;font-size:.72rem;">Adicionar Item</div>
+        <div id="editCatalogBtns" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;"></div>
+        <div class="form-row-3">
+          <div class="form-group"><label>Item</label><input type="text" id="editItemName" class="form-control" placeholder="Nome do item"></div>
+          <div class="form-group"><label>Qtd</label><input type="number" id="editItemQty" class="form-control" value="1" min="1"></div>
+          <div class="form-group"><label>Preço</label><input type="number" id="editItemPrice" class="form-control" placeholder="0.00" step="0.01"></div>
+        </div>
+        <div class="form-group"><label>Sabor/Complemento</label><input type="text" id="editItemSabor" class="form-control" placeholder="Opcional"></div>
+        <button class="btn btn-gray btn-sm" onclick="addEditItem()">+ Adicionar Item</button>
+      </div>
+      <div style="margin-top:14px;text-align:right;font-size:.88rem;">
+        Subtotal: <strong id="editSubtotal">R$0,00</strong> | Taxa: <strong id="editTaxaVal">R$0,00</strong> | Total: <strong id="editTotal" style="color:var(--red)">R$0,00</strong>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-gray" onclick="closeModal('modalEditOrder')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveEditOrder()">💾 Salvar Alterações</button>
     </div>
   </div>
 </div>
@@ -748,6 +800,7 @@ let allFornecedores = {};
 let allEstoque = {};
 let allDespesas = {};
 let manualItems = [];
+let editItems = [];
 let pedidosFilter = 'todos';
 let dashPeriod = 'hoje';
 let dreMonthOffset = 0;
@@ -931,6 +984,7 @@ function detectNewOrders(prevKeys) {
         addNotification(`Novo pedido #${p.num || ''} de ${p.nome}`, '📦');
         playNotifSound();
         if (autoPrint) aceitarPedido(k);
+        saveClienteBasicInfo(p); // salva dados do cliente automaticamente
       }
     }
     // Detect status change to pronto for entregador bell
@@ -1126,7 +1180,8 @@ function renderPedidos() {
   if (currentRole !== 'admin') return;
   const el = document.getElementById('pedidosList');
   let list = Object.entries(allPedidos).sort((a,b)=>(b[1].timestamp||0)-(a[1].timestamp||0));
-  if (pedidosFilter !== 'todos') list = list.filter(([,p])=>p.status===pedidosFilter);
+  if (pedidosFilter === 'retirada') list = list.filter(([,p])=>p.tipo==='retirada');
+  else if (pedidosFilter !== 'todos') list = list.filter(([,p])=>p.status===pedidosFilter);
   if (!list.length) { el.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>Nenhum pedido encontrado.</p></div>'; return; }
   el.innerHTML = list.map(([id,p]) => orderCardHtml(id, p, 'admin')).join('');
 }
@@ -1142,7 +1197,7 @@ function orderCardHtml(id, p, role) {
       <span style="font-size:.8rem;color:var(--gray)">${fmtDate(p.timestamp)}</span>
       ${p.tipo==='entrega'?'<span class="badge" style="background:#ede9fe;color:#5b21b6">🛵 Entrega</span>':'<span class="badge" style="background:#dcfce7;color:#166534">🏪 Retirada</span>'}
       <span style="margin-left:auto;display:flex;gap:6px;">
-        ${role==='admin'?`<button class="btn btn-gray btn-sm" onclick="printOrder('${id}')">🖨️</button>`:''}
+        ${role==='admin'?`<button class="btn btn-gray btn-sm" onclick="printOrder('${id}')">🖨️</button><button class="btn btn-yellow btn-sm" onclick="openEditOrderModal('${id}')">✏️ Editar</button>`:''}
       </span>
     </div>
     <div class="order-body">
@@ -1169,7 +1224,10 @@ function buildStatusBtns(id, p) {
   let btns = '';
   if (s==='novo') btns += `<button class="btn btn-green btn-sm" onclick="aceitarPedido('${id}')" style="font-weight:700;font-size:.95rem;padding:8px 16px;">✅ Aceitar e Imprimir</button>`;
   if (s==='preparo') btns += `<button class="btn btn-blue btn-sm" onclick="updateStatus('${id}','pronto')">✅ Pronto</button>`;
-  if (s==='pronto') btns += `<button class="btn btn-primary btn-sm" onclick="handleSaiuEntrega('${id}')">🛵 Saiu p/ Entrega</button>`;
+  if (s==='pronto') {
+    if (p.tipo==='retirada') btns += `<button class="btn btn-green btn-sm" onclick="updateStatus('${id}','entregue')">✅ Retirado pelo Cliente</button>`;
+    else btns += `<button class="btn btn-primary btn-sm" onclick="handleSaiuEntrega('${id}')">🛵 Saiu p/ Entrega</button>`;
+  }
   if (s==='entrega') btns += `<button class="btn btn-green btn-sm" onclick="updateStatus('${id}','entregue')">📬 Entregue</button>`;
   if (s!=='entregue'&&s!=='cancelado') btns += `<button class="btn btn-gray btn-sm" onclick="updateStatus('${id}','cancelado')" style="margin-left:auto">❌ Cancelar</button>`;
   btns += `<button class="btn btn-sm" onclick="deletePedido('${id}')" style="margin-left:${(s==='entregue'||s==='cancelado')?'auto':'4px'};background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;">🗑️ Excluir</button>`;
@@ -1205,6 +1263,7 @@ window.aceitarPedido = async function(id) {
   await update(ref(db, `pedidos/${id}`), { status: 'preparo' });
   showToast(`✅ Pedido #${p.num||''} aceito!`, 'success');
   printOrder(id);
+  saveClienteBasicInfo(p); // garante que cliente fica salvo ao aceitar
   // Avisar cliente via WhatsApp com resumo do pedido
   const phone = (p.telefone||'').replace(/\D/g,'');
   if (phone) {
@@ -1430,6 +1489,26 @@ window.showClienteDetail = function(key) {
 };
 
 // ── AUTO SAVE CLIENTE ──────────────────────────────────────────
+// Salva dados básicos do cliente sem alterar totais (chamado no novo pedido)
+async function saveClienteBasicInfo(order) {
+  if (!order || !order.telefone) return;
+  const phone = order.telefone.replace(/\D/g,'');
+  if (!phone) return;
+  const key = 'tel_' + phone;
+  const existing = allClientes[key];
+  const updates = {
+    nome: order.nome || (existing && existing.nome) || '',
+    telefone: order.telefone,
+    endereco: order.endereco || (existing && existing.endereco) || '',
+    numero: order.numero || (existing && existing.numero) || '',
+    bairro: order.bairro || (existing && existing.bairro) || '',
+    ultimoPedido: order.timestamp || Date.now()
+  };
+  // Se cliente novo, inicializa totais
+  if (!existing) { updates.totalGasto = 0; updates.totalPedidos = 0; }
+  await update(ref(db, `clientes/${key}`), updates);
+}
+
 async function autoSaveCliente(order) {
   if (!order || !order.telefone) return;
   const phone = order.telefone.replace(/\D/g,'');
@@ -1984,7 +2063,23 @@ window.openNewOrderModal = function() {
   document.getElementById('mnItemPrice').value='';
   document.getElementById('mnItemSabor').value='';
   renderManualItems();
+  // Botões rápidos do cardápio
+  const catEl = document.getElementById('mnCatalogBtns');
+  if (catEl) {
+    catEl.innerHTML = PRATOS_LIST.map(pr => {
+      const dadosFb = cardapioData.pratos[pr.id] || {};
+      const nome = dadosFb.nome || pr.nome;
+      const preco = dadosFb.preco !== undefined ? dadosFb.preco : pr.preco;
+      return `<button class="btn btn-gray btn-sm" onclick="addItemFromCatalog('${nome.replace(/'/g,"\\'")}',${preco})" style="font-size:.75rem;padding:6px 10px;">${nome}${preco>0?' — '+fmt(preco):''}</button>`;
+    }).join('');
+  }
   openModal('modalNewOrder');
+};
+
+window.addItemFromCatalog = function(nome, preco) {
+  manualItems.push({ name: nome, qty: 1, price: preco, sabor: '' });
+  renderManualItems();
+  showToast(nome + ' adicionado!', 'success');
 };
 
 window.toggleDeliveryFields = function() {
@@ -2050,6 +2145,91 @@ window.saveManualOrder = async function() {
   await push(ref(db,'pedidos'), order);
   closeModal('modalNewOrder');
   showToast('Pedido criado!');
+};
+
+// ── EDIT ORDER ─────────────────────────────────────────────────
+window.openEditOrderModal = function(id) {
+  const p = allPedidos[id];
+  if (!p) return;
+  editItems = JSON.parse(JSON.stringify(p.items || []));
+  document.getElementById('editOrderId').value = id;
+  document.getElementById('editPagto').value = p.pagto || 'Dinheiro';
+  document.getElementById('editTipo').value = p.tipo || 'entrega';
+  document.getElementById('editObs').value = p.obs || '';
+  renderEditItems();
+  // Catalog buttons
+  const catEl = document.getElementById('editCatalogBtns');
+  if (catEl) {
+    catEl.innerHTML = PRATOS_LIST.map(pr => {
+      const dadosFb = cardapioData.pratos[pr.id] || {};
+      const nome = dadosFb.nome || pr.nome;
+      const preco = dadosFb.preco !== undefined ? dadosFb.preco : pr.preco;
+      return `<button class="btn btn-gray btn-sm" onclick="addEditItemFromCatalog('${nome.replace(/'/g,"\\'")}',${ preco})" style="font-size:.73rem;">${nome}</button>`;
+    }).join('');
+  }
+  openModal('modalEditOrder');
+};
+
+window.addEditItemFromCatalog = function(nome, preco) {
+  editItems.push({ name: nome, qty: 1, price: preco, sabor: '' });
+  renderEditItems();
+};
+
+window.addEditItem = function() {
+  const name = document.getElementById('editItemName').value.trim();
+  const qty = parseInt(document.getElementById('editItemQty').value) || 1;
+  const price = parseFloat(document.getElementById('editItemPrice').value) || 0;
+  const sabor = document.getElementById('editItemSabor').value.trim();
+  if (!name) { showToast('Informe o nome do item.', 'error'); return; }
+  editItems.push({ name, qty, price, sabor });
+  document.getElementById('editItemName').value = '';
+  document.getElementById('editItemQty').value = '1';
+  document.getElementById('editItemPrice').value = '';
+  document.getElementById('editItemSabor').value = '';
+  renderEditItems();
+};
+
+window.removeEditItem = function(idx) { editItems.splice(idx, 1); renderEditItems(); };
+
+function renderEditItems() {
+  const el = document.getElementById('editItemsList');
+  const id = document.getElementById('editOrderId').value;
+  const p = allPedidos[id] || {};
+  const taxa = p.taxa || 0;
+  const subtotal = editItems.reduce((s, i) => s + (i.price * i.qty), 0);
+  const total = subtotal + taxa;
+  document.getElementById('editSubtotal').textContent = fmt(subtotal);
+  document.getElementById('editTaxaVal').textContent = fmt(taxa);
+  document.getElementById('editTotal').textContent = fmt(total);
+  if (!editItems.length) { el.innerHTML = '<div style="color:#999;font-size:.82rem;padding:8px 0;">Nenhum item adicionado.</div>'; return; }
+  el.innerHTML = `<div style="background:#f9fafb;border-radius:8px;padding:10px;margin-bottom:8px;">
+  ${editItems.map((i, idx) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:.82rem;">
+    <span>${i.qty}x ${i.name}${i.sabor ? ' (' + i.sabor + ')' : ''}</span>
+    <span style="display:flex;align-items:center;gap:8px;">${fmt(i.price * i.qty)}
+      <button onclick="removeEditItem(${idx})" style="border:none;background:none;color:#ef4444;cursor:pointer;font-size:.9rem;">×</button>
+    </span>
+  </div>`).join('')}
+  </div>`;
+}
+
+window.saveEditOrder = async function() {
+  const id = document.getElementById('editOrderId').value;
+  if (!id || !allPedidos[id]) return;
+  if (!editItems.length) { showToast('Adicione pelo menos um item.', 'error'); return; }
+  const p = allPedidos[id];
+  const taxa = p.taxa || 0;
+  const subtotal = editItems.reduce((s, i) => s + (i.price * i.qty), 0);
+  const total = subtotal + taxa;
+  await update(ref(db, `pedidos/${id}`), {
+    pagto: document.getElementById('editPagto').value,
+    tipo: document.getElementById('editTipo').value,
+    obs: document.getElementById('editObs').value.trim(),
+    items: editItems,
+    subtotal,
+    total
+  });
+  closeModal('modalEditOrder');
+  showToast('✅ Pedido atualizado com sucesso!');
 };
 
 // ── INIT DATE ─────────────────────────────────────────────────
