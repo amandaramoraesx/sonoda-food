@@ -215,14 +215,42 @@ tr:hover td{background:#fafafa;}
   #printArea .print-title{font-size:16px;font-weight:bold;text-align:center;margin:8px 0;}
 }
 
+/* HAMBURGER */
+.hamburger{display:none;background:none;border:none;cursor:pointer;padding:6px;flex-direction:column;gap:5px;margin-right:4px;}
+.hamburger span{display:block;width:22px;height:2px;background:#fff;border-radius:2px;transition:.3s;}
+#sidebarOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:89;}
+#sidebarOverlay.show{display:block;}
+
 /* RESPONSIVE */
 @media(max-width:768px){
+  .hamburger{display:flex;}
   .sidebar{transform:translateX(-100%);transition:.3s;}
   .sidebar.open{transform:translateX(0);}
-  .main{margin-left:0;}
+  .main{margin-left:0;padding:16px 12px;}
   .charts-grid{grid-template-columns:1fr;}
   .form-row,.form-row-3{grid-template-columns:1fr;}
   .order-info-grid{grid-template-columns:1fr;}
+  .stat-cards{grid-template-columns:1fr 1fr !important;gap:10px;margin-bottom:16px;}
+  .stat-card{padding:14px 12px;}
+  .stat-val{font-size:1.4rem;}
+  .login-card{width:calc(100% - 32px);padding:32px 24px;}
+  .modal-overlay{padding:10px;}
+  .modal-body{padding:16px;}
+  .modal-header{padding:14px 16px;}
+  .modal-footer{padding:12px 16px;}
+  .modal{max-width:100% !important;border-radius:12px;}
+  .header{padding:0 12px;gap:8px;}
+  #qzStatus{display:none;}
+  .header-user{display:none;}
+  .card{padding:14px 12px;}
+  .section-hdr{flex-direction:column;align-items:flex-start;gap:8px;}
+  .section-hdr>div{flex-wrap:wrap;}
+  .entregador-stats{gap:12px;}
+  #toastContainer{bottom:12px;right:12px;left:12px;}
+  .toast{min-width:unset;max-width:100%;}
+  .order-actions{gap:6px;}
+  .order-actions .btn{font-size:.72rem;padding:5px 8px;}
+  .clientes-grid{grid-template-columns:1fr !important;}
 }
 
 /* EMPTY STATE */
@@ -276,6 +304,9 @@ tr:hover td{background:#fafafa;}
 <!-- APP -->
 <div id="app">
   <div class="header">
+    <button class="hamburger" onclick="toggleSidebar()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
     <div class="header-logo">🍱 Sonoda <span>Admin</span></div>
     <div class="header-spacer"></div>
     <button id="bellBtn" onclick="toggleNotifPanel()">🔔<span id="bellBadge"></span></button>
@@ -284,6 +315,7 @@ tr:hover td{background:#fafafa;}
     <button class="header-logout" onclick="doLogout()">Sair</button>
   </div>
 
+  <div id="sidebarOverlay" onclick="closeSidebar()"></div>
   <div class="sidebar" id="sidebar">
     <nav id="navMenu"></nav>
   </div>
@@ -409,7 +441,7 @@ tr:hover td{background:#fafafa;}
     <div class="tab-content" id="tab-clientes">
       <div class="section-hdr"><h2>👥 Clientes</h2></div>
       <div class="search-bar"><span class="search-icon">🔍</span><input type="text" id="clienteSearch" placeholder="Buscar por nome ou telefone..." oninput="filterClientes()"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div class="clientes-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
         <div>
           <div id="clientesList"></div>
         </div>
@@ -969,11 +1001,22 @@ function buildNav() {
     const el = document.createElement('div');
     el.className = 'nav-item';
     el.id = 'nav-' + item.id;
-    el.onclick = () => showTab(item.id);
+    el.onclick = () => { showTab(item.id); closeSidebar(); };
     el.innerHTML = `<span class="nav-icon">${item.icon}</span><span>${item.label}</span>${item.badge ? `<span class="nav-badge" id="badge-${item.badge}" style="display:none">0</span>` : ''}`;
     menu.appendChild(el);
   });
 }
+
+window.toggleSidebar = function() {
+  const sb = document.getElementById('sidebar');
+  const ov = document.getElementById('sidebarOverlay');
+  const open = sb.classList.toggle('open');
+  ov.classList.toggle('show', open);
+};
+window.closeSidebar = function() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('show');
+};
 
 window.showTab = function(id) {
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
