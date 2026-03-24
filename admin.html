@@ -483,6 +483,10 @@ tr:hover td{background:#fafafa;}
         <h2>🏍️ Entregadores</h2>
         <button class="btn btn-primary" onclick="openEntregadorModal()">+ Novo Entregador</button>
       </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+        <label style="font-size:.85rem;font-weight:600;color:var(--gray);">📅 Ver faturamento do dia:</label>
+        <input type="date" id="entregadorDataFiltro" class="form-control" style="width:auto;" onchange="renderEntregadores()">
+      </div>
       <div id="entregadoresList"></div>
     </div>
 
@@ -1834,17 +1838,24 @@ function renderEntregadores() {
   if (!list.length) { el.innerHTML = '<div class="empty-state"><div class="icon">🏍️</div><p>Nenhum entregador cadastrado.</p></div>'; return; }
   const today = new Date();
   const todayStr = today.toDateString();
-  const yesterday = new Date(today); yesterday.setDate(today.getDate()-1);
-  const yesterdayStr = yesterday.toDateString();
+  // Inicializa o filtro de data com hoje se ainda não foi definido
+  const inputData = document.getElementById('entregadorDataFiltro');
+  if (inputData && !inputData.value) {
+    const y = today.getFullYear(), m = String(today.getMonth()+1).padStart(2,'0'), d = String(today.getDate()).padStart(2,'0');
+    inputData.value = `${y}-${m}-${d}`;
+  }
+  const filtroStr = inputData && inputData.value ? new Date(inputData.value + 'T00:00:00').toDateString() : todayStr;
+  const isToday = filtroStr === todayStr;
+  const lblDia = isToday ? 'Hoje' : (inputData.value ? new Date(inputData.value + 'T00:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) : 'Hoje');
   el.innerHTML = list.map(([id,e]) => {
     const todayDeliveries = Object.values(allPedidos).filter(p =>
       p.status==='entregue' && p.entregadorId===id && p.timestamp && new Date(p.timestamp).toDateString()===todayStr
     );
-    const yesterdayDeliveries = Object.values(allPedidos).filter(p =>
-      p.status==='entregue' && p.entregadorId===id && p.timestamp && new Date(p.timestamp).toDateString()===yesterdayStr
+    const filtroDeliveries = Object.values(allPedidos).filter(p =>
+      p.status==='entregue' && p.entregadorId===id && p.timestamp && new Date(p.timestamp).toDateString()===filtroStr
     );
     const taxaToday = todayDeliveries.reduce((s,p)=>s+(p.taxa||0),0);
-    const taxaYesterday = yesterdayDeliveries.reduce((s,p)=>s+(p.taxa||0),0);
+    const taxaFiltro = filtroDeliveries.reduce((s,p)=>s+(p.taxa||0),0);
     return `<div class="entregador-card">
       <div class="entregador-info">
         <h4>${e.nome} <span style="font-size:.72rem;background:${e.ativo?'#dcfce7':'#fee2e2'};color:${e.ativo?'#166534':'#991b1b'};padding:2px 8px;border-radius:10px;">${e.ativo?'Ativo':'Inativo'}</span></h4>
@@ -1853,8 +1864,8 @@ function renderEntregadores() {
       <div class="entregador-stats">
         <div class="entregador-stat"><div class="val">${todayDeliveries.length}</div><div class="lbl">Entregas Hoje</div></div>
         <div class="entregador-stat"><div class="val">${fmt(taxaToday)}</div><div class="lbl">Taxa Hoje</div></div>
-        <div class="entregador-stat"><div class="val">${yesterdayDeliveries.length}</div><div class="lbl">Entregas Ontem</div></div>
-        <div class="entregador-stat"><div class="val">${fmt(taxaYesterday)}</div><div class="lbl">Taxa Ontem</div></div>
+        ${!isToday ? `<div class="entregador-stat"><div class="val">${filtroDeliveries.length}</div><div class="lbl">Entregas ${lblDia}</div></div>
+        <div class="entregador-stat"><div class="val">${fmt(taxaFiltro)}</div><div class="lbl">Taxa ${lblDia}</div></div>` : ''}
       </div>
       <div style="display:flex;gap:8px;">
         <button class="btn btn-gray btn-sm" onclick="openEntregadorModal('${id}')">✏️</button>
