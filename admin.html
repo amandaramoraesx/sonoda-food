@@ -967,6 +967,8 @@ let chartBar = null;
 let chartDoughnut = null;
 let knownPedidoIds = new Set();
 let notifications = [];
+let currentEntregadorKey = null;
+let notifiedProntoIds = new Set();
 let cardapioData = { lojaFechada: false, esgotados: {}, ofertas: {}, pratos: {}, bairros: [], tempoEntrega: '', tempoRetirada: '', pedidoMinimo: 30, destaqueDia: '', zapiInstance: '', zapiToken: '', zapiClientToken: '' };
 let entregadorMonthModal = null;
 
@@ -1081,6 +1083,10 @@ function startListeners() {
   onValue(ref(db, 'clientes'), snap => { allClientes = snap.val() || {}; });
   onValue(ref(db, 'entregadores'), snap => {
     allEntregadores = snap.val() || {};
+    if (currentRole === 'entregador') {
+      const found = Object.entries(allEntregadores).find(([,e]) => e.login === currentUser);
+      currentEntregadorKey = found ? found[0] : null;
+    }
     if (document.getElementById('tab-entregadores').classList.contains('active')) renderEntregadores();
     populateEntregadorDropdowns();
   });
@@ -1173,12 +1179,19 @@ function detectNewOrders(prevKeys) {
         saveClienteBasicInfo(p); // salva dados do cliente automaticamente
       }
     }
-    // Detect status change to pronto for entregador bell
-    if (currentRole === 'entregador' && allPedidos[k]?.status === 'pronto') {
-      const existing = notifications.find(n => n.msg && n.msg.includes('#' + allPedidos[k].num) && n.msg.includes('pronto'));
-      if (!existing) {
-        addNotification(`Pedido #${allPedidos[k].num} está PRONTO para entrega!`, '🔔');
+    // Notifica entregador quando pedido fica pronto
+    if (currentRole === 'entregador' && allPedidos[k]?.status === 'pronto' && !notifiedProntoIds.has(k)) {
+      notifiedProntoIds.add(k);
+      if (knownPedidoIds.has(k)) { // só notifica se já estava carregado (não no load inicial)
+        const num = allPedidos[k].num || '';
+        showToast(`🔔 Pedido #${num} está PRONTO para entrega!`, 'info');
+        addNotification(`Pedido #${num} está PRONTO para entrega!`, '🔔');
+        playNotifSound();
       }
+    }
+    // Limpa notificação de pronto se pedido saiu para entrega ou foi entregue
+    if (notifiedProntoIds.has(k) && ['entrega','entregue','cancelado'].includes(allPedidos[k]?.status)) {
+      notifiedProntoIds.delete(k);
     }
   });
   // mark all as known
@@ -1534,6 +1547,7 @@ function renderMeuPainel() {
 
   Object.values(allPedidos).forEach(p => {
     if (p.status !== 'entregue' || p.tipo !== 'entrega') return;
+    if (currentEntregadorKey && p.entregadorId && p.entregadorId !== currentEntregadorKey) return;
     const d = new Date(p.timestamp||0);
     const taxa = parseFloat(p.taxa||0);
     const dStr = d.toDateString();
@@ -1617,7 +1631,9 @@ function renderEntregas() {
 
 window.handleSaiuEntregaEnt = function(id) {
   const p = allPedidos[id];
-  update(ref(db, `pedidos/${id}`), { status:'entrega' });
+  const upd = { status:'entrega' };
+  if (currentEntregadorKey) upd.entregadorId = currentEntregadorKey;
+  update(ref(db, `pedidos/${id}`), upd);
   const msg = `Olá ${p.nome}! 🛵 Seu pedido da Sonoda já saiu para entrega! Em breve estará na sua porta. Obrigado pela preferência! 🍱`;
   if (p.telefone) sendWhatsApp(p.telefone, msg);
   showToast('Pedido saiu para entrega!');
@@ -1897,6 +1913,7 @@ window.saveEntregador = async function() {
     telefone: document.getElementById('entTel').value.trim(),
     valorFixoDiario: parseFloat(document.getElementById('entValor').value)||0,
     salarioMensal: parseFloat(document.getElementById('entSalarioMensal').value)||0,
+    login: document.getElementById('entLogin').value.trim(),
     ativo: document.getElementById('entAtivo').checked
   };
   if (!data.nome) { showToast('Informe o nome.','error'); return; }
