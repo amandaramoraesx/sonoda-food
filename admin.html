@@ -316,6 +316,23 @@ tr:hover td{background:#fafafa;}
 
 /* PRATO BUTTONS */
 .prato-toggle-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+
+/* FIN MOBILE TABS */
+.fin-mob-tabs{display:none;}
+.fin-desktop-desp{display:block;}
+@media(max-width:767px){
+  .fin-mob-tabs{display:flex;gap:0;background:#f3f4f6;border-radius:14px;padding:4px;margin-bottom:16px;}
+  .fin-mob-tab{flex:1;border:none;background:transparent;padding:9px 4px;border-radius:10px;font-size:.8rem;font-weight:600;color:var(--gray);cursor:pointer;transition:.15s;}
+  .fin-mob-tab.active{background:#fff;color:var(--red);box-shadow:0 1px 4px rgba(0,0,0,.1);}
+  .fin-mob-section{display:none;}
+  .fin-mob-section.active{display:block;}
+  .fin-grid{display:block;}
+  .fin-btn-row{display:grid;grid-template-columns:1fr auto;gap:8px;}
+  .fin-desktop-desp{display:none;}
+}
+@media(min-width:768px){
+  .fin-mob-section{display:block !important;}
+}
 </style>
 </head>
 <body>
@@ -501,41 +518,56 @@ tr:hover td{background:#fafafa;}
     <div class="tab-content" id="tab-financeiro">
       <div class="section-hdr"><h2>💵 Financeiro</h2></div>
 
-      <!-- VALORES A RECEBER (FIADO) -->
-      <div class="card" style="margin-bottom:20px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
-          <div class="card-title">📋 Valores a Receber — Fiado</div>
-          <button class="btn btn-primary btn-sm" onclick="openNovoFiadoAvulso()">+ Registrar Fiado</button>
+      <!-- ABAS MOBILE -->
+      <div class="fin-mob-tabs">
+        <button class="fin-mob-tab active" onclick="finMobTab('dre',this)">📊 DRE</button>
+        <button class="fin-mob-tab" onclick="finMobTab('despesa',this)">➕ Despesa</button>
+        <button class="fin-mob-tab" onclick="finMobTab('fiado',this)">💰 Fiado</button>
+      </div>
+
+      <!-- SEÇÃO FIADO (desktop: sempre visível; mobile: aba) -->
+      <div class="fin-mob-section" id="finSec-fiado">
+        <div class="card" style="margin-bottom:20px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+            <div class="card-title">📋 Valores a Receber — Fiado</div>
+            <button class="btn btn-primary btn-sm" onclick="openNovoFiadoAvulso()">+ Registrar Fiado</button>
+          </div>
+          <div id="fiadosResumo" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;"></div>
+          <div id="fiadosList"></div>
         </div>
-        <div id="fiadosResumo" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;"></div>
-        <div id="fiadosList"></div>
       </div>
 
       <div class="fin-grid">
         <!-- COL 1: REGISTRAR DESPESA -->
-        <div class="card">
-          <div class="card-title" style="margin-bottom:14px;">Registrar Despesa</div>
-          <div class="form-row" style="grid-template-columns:1fr 1fr;">
-            <div class="form-group"><label>Data</label><input type="date" id="despData" class="form-control"></div>
-            <div class="form-group"><label>Categoria</label>
-              <select id="despCategoria" class="form-control" onchange="onDespCategoriaChange()">
-                <option value="">Selecione...</option>
-                <option>Diária Entregador</option><option>Salários</option><option>Mercado/Insumos</option>
-                <option>Contas Fixas</option><option>Manutenção</option><option>Embalagens/Descartáveis</option>
-              </select>
+        <div class="fin-mob-section" id="finSec-despesa">
+          <div class="card fin-mob-form">
+            <div class="card-title" style="margin-bottom:14px;">Registrar Despesa</div>
+            <div class="form-row" style="grid-template-columns:1fr 1fr;">
+              <div class="form-group"><label>Data</label><input type="date" id="despData" class="form-control"></div>
+              <div class="form-group"><label>Categoria</label>
+                <select id="despCategoria" class="form-control" onchange="onDespCategoriaChange()">
+                  <option value="">Selecione...</option>
+                  <option>Diária Entregador</option><option>Salários</option><option>Mercado/Insumos</option>
+                  <option>Contas Fixas</option><option>Manutenção</option><option>Embalagens/Descartáveis</option>
+                </select>
+              </div>
             </div>
+            <div class="form-group"><label>Descrição</label><input type="text" id="despDescricao" class="form-control" placeholder="Ex: Pagamento fornecedor..."></div>
+            <div class="fin-btn-row">
+              <div class="form-group" style="margin-bottom:0;"><label>Valor (R$)</label><input type="number" id="despValor" class="form-control" placeholder="0,00" step="0.01"></div>
+              <div class="form-group" style="margin-bottom:0;"><label>&nbsp;</label><button class="btn btn-sm" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;padding:9px 12px;border-radius:10px;font-weight:700;white-space:nowrap;width:100%;" onclick="lancaDiariaEntregador()">⚡ R$50</button></div>
+            </div>
+            <button class="btn btn-primary" style="width:100%;margin-top:14px;" onclick="saveDespesa()">💾 Salvar Despesa</button>
           </div>
-          <div class="form-group"><label>Descrição</label><input type="text" id="despDescricao" class="form-control" placeholder="Ex: Pagamento fornecedor..."></div>
-          <div class="form-row" style="grid-template-columns:1fr auto;">
-            <div class="form-group" style="margin-bottom:0;"><label>Valor (R$)</label><input type="number" id="despValor" class="form-control" placeholder="0,00" step="0.01"></div>
-            <div class="form-group" style="margin-bottom:0;"><label>&nbsp;</label><button class="btn btn-sm" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;padding:9px 12px;border-radius:10px;font-weight:700;white-space:nowrap;width:100%;" onclick="lancaDiariaEntregador()">⚡ R$50</button></div>
+          <div class="card" style="margin-top:16px;">
+            <div class="card-title" style="margin-bottom:10px;">Despesas do Período</div>
+            <div id="despesasList"></div>
           </div>
-          <button class="btn btn-primary" style="width:100%;margin-top:14px;" onclick="saveDespesa()">💾 Salvar Despesa</button>
         </div>
 
-        <!-- COL 2: DRE + DESPESAS -->
-        <div>
-          <div class="card" style="margin-bottom:16px;">
+        <!-- COL 2: DRE -->
+        <div class="fin-mob-section active" id="finSec-dre">
+          <div class="card">
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
               <div class="card-title" style="margin-bottom:0;">DRE — Demonstrativo</div>
               <div style="display:flex;gap:6px;">
@@ -544,10 +576,6 @@ tr:hover td{background:#fafafa;}
               </div>
             </div>
             <div id="dreContent"></div>
-          </div>
-          <div class="card">
-            <div class="card-title" style="margin-bottom:10px;">Despesas do Período</div>
-            <div id="despesasList"></div>
           </div>
         </div>
       </div>
@@ -2137,6 +2165,15 @@ window.saveDespesa = async function() {
   showToast('Despesa registrada!');
 };
 
+window.finMobTab = function(name, btn) {
+  document.querySelectorAll('.fin-mob-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  ['dre','despesa','fiado'].forEach(s => {
+    document.getElementById('finSec-'+s)?.classList.remove('active');
+  });
+  document.getElementById('finSec-'+name)?.classList.add('active');
+};
+
 window.setDrePeriod = function(offset, el) {
   dreMonthOffset = offset;
   document.querySelectorAll('[id^="dreMes"]').forEach(b => b.classList.remove('active'));
@@ -2168,16 +2205,31 @@ function renderDRE() {
   const cats = {};
   desp.forEach(d => { cats[d.categoria]=(cats[d.categoria]||0)+(d.valor||0); });
   const monthLabel = start.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
-  document.getElementById('dreContent').innerHTML = `
-    <div style="font-size:.78rem;color:var(--gray);margin-bottom:8px;">${monthLabel}</div>
-    <div class="dre-row"><span>Receita Bruta</span><span>${fmt(receitaBruta)}</span></div>
-    <div class="dre-row" style="color:var(--gray)"><span>— Taxa de Entrega</span><span>- ${fmt(taxasEnt)}</span></div>
-    <div class="dre-row total"><span>Receita Líquida</span><span>${fmt(receitaLiq)}</span></div>
-    <div class="dre-section-title">Despesas por Categoria</div>
-    ${Object.entries(cats).map(([c,v])=>`<div class="dre-row"><span>${c}</span><span>- ${fmt(v)}</span></div>`).join('')}
-    <div class="dre-row total"><span>Total Despesas</span><span>- ${fmt(totalDesp)}</span></div>
-    <div class="dre-row profit ${lucro>=0?'pos':'neg'} total"><span>Lucro / Prejuízo</span><span>${lucro>=0?'+':''}${fmt(lucro)}</span></div>
-  `;
+  const isMob = window.innerWidth < 768;
+  if (isMob) {
+    const catsHtml = Object.entries(cats).map(([c,v])=>`<div class="dre-mob-cat-row"><span>${c}</span><span style="font-weight:700;color:#991b1b;">- ${fmt(v)}</span></div>`).join('');
+    document.getElementById('dreContent').innerHTML = `
+      <div style="font-size:.75rem;color:var(--gray);font-weight:600;text-transform:uppercase;margin-bottom:12px;">${monthLabel}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div class="dre-mob-card"><div class="dre-mob-label">Receita Bruta</div><div class="dre-mob-val blue">${fmt(receitaBruta)}</div></div>
+        <div class="dre-mob-card"><div class="dre-mob-label">Receita Líquida</div><div class="dre-mob-val blue">${fmt(receitaLiq)}</div><div style="font-size:.7rem;color:var(--gray);">Após taxa entrega</div></div>
+        <div class="dre-mob-card"><div class="dre-mob-label">Total Despesas</div><div class="dre-mob-val red">- ${fmt(totalDesp)}</div></div>
+        <div class="dre-mob-card" style="background:${lucro>=0?'#f0fdf4':'#fef2f2'};"><div class="dre-mob-label">Lucro / Prejuízo</div><div class="dre-mob-val ${lucro>=0?'green':'red'}">${lucro>=0?'+':''}${fmt(lucro)}</div></div>
+      </div>
+      ${catsHtml ? `<div class="dre-mob-cats"><div style="font-size:.72rem;color:var(--gray);font-weight:700;text-transform:uppercase;margin-bottom:6px;">Despesas por categoria</div>${catsHtml}</div>` : ''}
+    `;
+  } else {
+    document.getElementById('dreContent').innerHTML = `
+      <div style="font-size:.78rem;color:var(--gray);margin-bottom:8px;">${monthLabel}</div>
+      <div class="dre-row"><span>Receita Bruta</span><span>${fmt(receitaBruta)}</span></div>
+      <div class="dre-row" style="color:var(--gray)"><span>— Taxa de Entrega</span><span>- ${fmt(taxasEnt)}</span></div>
+      <div class="dre-row total"><span>Receita Líquida</span><span>${fmt(receitaLiq)}</span></div>
+      <div class="dre-section-title">Despesas por Categoria</div>
+      ${Object.entries(cats).map(([c,v])=>`<div class="dre-row"><span>${c}</span><span>- ${fmt(v)}</span></div>`).join('')}
+      <div class="dre-row total"><span>Total Despesas</span><span>- ${fmt(totalDesp)}</span></div>
+      <div class="dre-row profit ${lucro>=0?'pos':'neg'} total"><span>Lucro / Prejuízo</span><span>${lucro>=0?'+':''}${fmt(lucro)}</span></div>
+    `;
+  }
 }
 
 function renderDespesas() {
