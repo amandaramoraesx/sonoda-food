@@ -1832,12 +1832,19 @@ function renderEntregadores() {
   const el = document.getElementById('entregadoresList');
   const list = Object.entries(allEntregadores);
   if (!list.length) { el.innerHTML = '<div class="empty-state"><div class="icon">🏍️</div><p>Nenhum entregador cadastrado.</p></div>'; return; }
-  const todayStr = new Date().toDateString();
+  const today = new Date();
+  const todayStr = today.toDateString();
+  const yesterday = new Date(today); yesterday.setDate(today.getDate()-1);
+  const yesterdayStr = yesterday.toDateString();
   el.innerHTML = list.map(([id,e]) => {
     const todayDeliveries = Object.values(allPedidos).filter(p =>
       p.status==='entregue' && p.entregadorId===id && p.timestamp && new Date(p.timestamp).toDateString()===todayStr
     );
+    const yesterdayDeliveries = Object.values(allPedidos).filter(p =>
+      p.status==='entregue' && p.entregadorId===id && p.timestamp && new Date(p.timestamp).toDateString()===yesterdayStr
+    );
     const taxaToday = todayDeliveries.reduce((s,p)=>s+(p.taxa||0),0);
+    const taxaYesterday = yesterdayDeliveries.reduce((s,p)=>s+(p.taxa||0),0);
     return `<div class="entregador-card">
       <div class="entregador-info">
         <h4>${e.nome} <span style="font-size:.72rem;background:${e.ativo?'#dcfce7':'#fee2e2'};color:${e.ativo?'#166534':'#991b1b'};padding:2px 8px;border-radius:10px;">${e.ativo?'Ativo':'Inativo'}</span></h4>
@@ -1846,6 +1853,8 @@ function renderEntregadores() {
       <div class="entregador-stats">
         <div class="entregador-stat"><div class="val">${todayDeliveries.length}</div><div class="lbl">Entregas Hoje</div></div>
         <div class="entregador-stat"><div class="val">${fmt(taxaToday)}</div><div class="lbl">Taxa Hoje</div></div>
+        <div class="entregador-stat"><div class="val">${yesterdayDeliveries.length}</div><div class="lbl">Entregas Ontem</div></div>
+        <div class="entregador-stat"><div class="val">${fmt(taxaYesterday)}</div><div class="lbl">Taxa Ontem</div></div>
       </div>
       <div style="display:flex;gap:8px;">
         <button class="btn btn-gray btn-sm" onclick="openEntregadorModal('${id}')">✏️</button>
