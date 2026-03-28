@@ -510,6 +510,7 @@ tr:hover td{background:#fafafa;}
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
         <label style="font-size:.85rem;font-weight:600;color:var(--gray);">📅 Ver faturamento do dia:</label>
         <input type="date" id="entregadorDataFiltro" class="form-control" style="width:auto;" onchange="renderEntregadores()">
+        <button class="btn btn-gray btn-sm" onclick="(()=>{const t=new Date();document.getElementById('entregadorDataFiltro').value=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');renderEntregadores();})()">Hoje</button>
       </div>
       <div id="entregadoresList"></div>
     </div>
@@ -709,12 +710,14 @@ tr:hover td{background:#fafafa;}
     <div class="tab-content" id="tab-relatorios">
       <div class="section-hdr">
         <h2>📈 Relatórios</h2>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="chip active" onclick="setRelatPeriod('hoje',this)">Hoje</button>
-          <button class="chip" onclick="setRelatPeriod('semana',this)">Esta Semana</button>
-          <button class="chip" onclick="setRelatPeriod('mes',this)">Este Mês</button>
-          <button class="btn btn-gray btn-sm" onclick="printRelatorio()">🖨️ Imprimir</button>
-        </div>
+        <button class="btn btn-gray btn-sm" onclick="printRelatorio()">🖨️ Imprimir</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+        <button class="chip active" id="chipHoje" onclick="setRelatPeriod('hoje',this)">Hoje</button>
+        <button class="chip" id="chipSemana" onclick="setRelatPeriod('semana',this)">Esta Semana</button>
+        <button class="chip" id="chipMes" onclick="setRelatPeriod('mes',this)">Este Mês</button>
+        <span style="font-size:.82rem;font-weight:600;color:var(--gray);">ou escolha uma data:</span>
+        <input type="date" id="relatDataFiltro" class="form-control" style="width:auto;font-size:.82rem;" onchange="setRelatDate(this.value)">
       </div>
       <div id="relatContent"></div>
     </div>
@@ -763,7 +766,8 @@ tr:hover td{background:#fafafa;}
         </div>
       </div>
       <hr style="margin:12px 0;">
-      <div class="card-title" style="margin-bottom:8px;">Itens do Pedido</div>
+      <div class="card-title" style="margin-bottom:6px;">Itens do Pedido</div>
+      <div id="mnCatalogBtns" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;"></div>
       <div style="display:flex;gap:6px;align-items:flex-end;margin-bottom:8px;">
         <div class="form-group" style="flex:1;margin-bottom:0;position:relative;">
           <label>Item do cardápio</label>
@@ -1452,7 +1456,7 @@ function renderPedidos() {
 }
 
 function orderCardHtml(id, p, role) {
-  const items = (p.items||[]).map(i => `<li><span>${i.qty||1}x ${i.name}${i.sabor?' <em>('+i.sabor+')</em>':''}</span><span>${fmt((i.price||0)*(i.qty||1))}</span></li>`).join('');
+  const items = (p.items||[]).map(i => `<li><span>${i.qty||1}x ${i.name}${i.sabor?' <em>('+i.sabor+')</em>':''}${i.obs?'<br><small style="color:#e67e00;">📝 '+i.obs+'</small>':''}</span><span>${fmt((i.price||0)*(i.qty||1))}</span></li>`).join('');
   const statusBtns = role==='admin' ? buildStatusBtns(id, p) : '';
   const addr = p.tipo==='entrega' ? `${p.endereco||''} ${p.numero||''}, ${p.bairro||''}` : 'Retirada no local';
   return `<div class="order-card">
@@ -1913,7 +1917,6 @@ function renderEntregadores() {
   if (!list.length) { el.innerHTML = '<div class="empty-state"><div class="icon">🏍️</div><p>Nenhum entregador cadastrado.</p></div>'; return; }
   const today = new Date();
   const todayStr = today.toDateString();
-  // Inicializa o filtro de data com hoje se ainda não foi definido
   const inputData = document.getElementById('entregadorDataFiltro');
   if (inputData && !inputData.value) {
     const y = today.getFullYear(), m = String(today.getMonth()+1).padStart(2,'0'), d = String(today.getDate()).padStart(2,'0');
@@ -1921,26 +1924,25 @@ function renderEntregadores() {
   }
   const filtroStr = inputData && inputData.value ? new Date(inputData.value + 'T00:00:00').toDateString() : todayStr;
   const isToday = filtroStr === todayStr;
-  const lblDia = isToday ? 'Hoje' : (inputData.value ? new Date(inputData.value + 'T00:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) : 'Hoje');
+  const lblDia = isToday ? 'Hoje' : (inputData.value ? new Date(inputData.value + 'T00:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}) : 'Hoje');
   el.innerHTML = list.map(([id,e]) => {
-    const todayDeliveries = Object.values(allPedidos).filter(p =>
-      p.status==='entregue' && p.entregadorId===id && p.timestamp && new Date(p.timestamp).toDateString()===todayStr
-    );
+    const diaria = e.valorFixoDiario || 0;
     const filtroDeliveries = Object.values(allPedidos).filter(p =>
       p.status==='entregue' && p.entregadorId===id && p.timestamp && new Date(p.timestamp).toDateString()===filtroStr
     );
-    const taxaToday = todayDeliveries.reduce((s,p)=>s+(p.taxa||0),0);
     const taxaFiltro = filtroDeliveries.reduce((s,p)=>s+(p.taxa||0),0);
+    const diariaDia = filtroDeliveries.length > 0 ? diaria : 0;
+    const totalDia = taxaFiltro + diariaDia;
     return `<div class="entregador-card">
       <div class="entregador-info">
         <h4>${e.nome} <span style="font-size:.72rem;background:${e.ativo?'#dcfce7':'#fee2e2'};color:${e.ativo?'#166534':'#991b1b'};padding:2px 8px;border-radius:10px;">${e.ativo?'Ativo':'Inativo'}</span></h4>
-        <p>${e.telefone||''} · Diária: ${fmt(e.valorFixoDiario||0)} · Mensal: ${fmt(e.salarioMensal||0)}</p>
+        <p>${e.telefone||''} · Diária: ${fmt(diaria)} · Mensal: ${fmt(e.salarioMensal||0)}</p>
       </div>
       <div class="entregador-stats">
-        <div class="entregador-stat"><div class="val">${todayDeliveries.length}</div><div class="lbl">Entregas Hoje</div></div>
-        <div class="entregador-stat"><div class="val">${fmt(taxaToday)}</div><div class="lbl">Taxa Hoje</div></div>
-        ${!isToday ? `<div class="entregador-stat"><div class="val">${filtroDeliveries.length}</div><div class="lbl">Entregas ${lblDia}</div></div>
-        <div class="entregador-stat"><div class="val">${fmt(taxaFiltro)}</div><div class="lbl">Taxa ${lblDia}</div></div>` : ''}
+        <div class="entregador-stat"><div class="val">${filtroDeliveries.length}</div><div class="lbl">Entregas ${lblDia}</div></div>
+        <div class="entregador-stat"><div class="val">${fmt(taxaFiltro)}</div><div class="lbl">Taxas ${lblDia}</div></div>
+        <div class="entregador-stat"><div class="val">${fmt(diariaDia)}</div><div class="lbl">Diária ${lblDia}</div></div>
+        <div class="entregador-stat"><div class="val" style="color:#16a34a;font-size:1.2rem;">${fmt(totalDia)}</div><div class="lbl">💰 Total ${lblDia}</div></div>
       </div>
       <div style="display:flex;gap:8px;">
         <button class="btn btn-gray btn-sm" onclick="openEntregadorModal('${id}')">✏️</button>
@@ -2414,15 +2416,43 @@ window.deleteFornecedor = async function(id) {
 };
 
 // ── RELATORIOS ─────────────────────────────────────────────────
+let relatCustomDate = null;
+
 window.setRelatPeriod = function(p, el) {
   relatPeriod = p;
+  relatCustomDate = null;
   document.querySelectorAll('#tab-relatorios .chip').forEach(c=>c.classList.remove('active'));
   el.classList.add('active');
+  const df = document.getElementById('relatDataFiltro');
+  if (df) df.value = '';
   renderRelatorio();
 };
 
+window.setRelatDate = function(dateVal) {
+  relatCustomDate = dateVal || null;
+  document.querySelectorAll('#tab-relatorios .chip').forEach(c=>c.classList.remove('active'));
+  renderRelatorio();
+};
+
+function getRelatList() {
+  if (relatCustomDate) {
+    const targetStr = new Date(relatCustomDate + 'T00:00:00').toDateString();
+    return Object.values(allPedidos).filter(p =>
+      p.status !== 'cancelado' && p.timestamp && new Date(p.timestamp).toDateString() === targetStr
+    );
+  }
+  return filterByPeriod(Object.values(allPedidos), relatPeriod).filter(p=>p.status!=='cancelado');
+}
+
+function getRelatLabel() {
+  if (relatCustomDate) {
+    return new Date(relatCustomDate + 'T00:00:00').toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric'});
+  }
+  return { hoje:'Hoje', semana:'Esta Semana', mes:'Este Mês' }[relatPeriod];
+}
+
 function renderRelatorio() {
-  const list = filterByPeriod(Object.values(allPedidos), relatPeriod).filter(p=>p.status!=='cancelado');
+  const list = getRelatList();
   const fat = list.reduce((s,p)=>s+(p.total||0),0);
   const count = list.length;
   const ticket = count ? fat/count : 0;
@@ -2430,8 +2460,8 @@ function renderRelatorio() {
   list.forEach(p=>{ byStatus[p.status]=(byStatus[p.status]||0)+1; });
   const dishCount = {};
   list.forEach(p=>(p.items||[]).forEach(i=>{ dishCount[i.name]=(dishCount[i.name]||0)+(i.qty||1); }));
-  const topDishes = Object.entries(dishCount).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  const periodoLabel = { hoje:'Hoje', semana:'Esta Semana', mes:'Este Mês' }[relatPeriod];
+  const topDishes = Object.entries(dishCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const periodoLabel = getRelatLabel();
   document.getElementById('relatContent').innerHTML = `
     <div class="card">
       <div class="card-title">Vendas — ${periodoLabel}</div>
@@ -2447,7 +2477,36 @@ function renderRelatorio() {
     </div>`;
 }
 
-window.printRelatorio = function() { window.print(); };
+window.printRelatorio = function() {
+  const list = getRelatList();
+  const fat = list.reduce((s,p)=>s+(p.total||0),0);
+  const count = list.length;
+  const ticket = count ? fat/count : 0;
+  const dishCount = {};
+  list.forEach(p=>(p.items||[]).forEach(i=>{ dishCount[i.name]=(dishCount[i.name]||0)+(i.qty||1); }));
+  const topDishes = Object.entries(dishCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const periodoLabel = getRelatLabel();
+  const byStatus = {};
+  list.forEach(p=>{ byStatus[p.status]=(byStatus[p.status]||0)+1; });
+  const printEl = document.getElementById('printArea');
+  printEl.innerHTML = `
+    <div class="print-center print-bold print-title">SONODA FOOD</div>
+    <div class="print-center" style="font-size:10px;margin-bottom:4px;">Relatório de Vendas — ${periodoLabel}</div>
+    <div class="print-line"></div>
+    <div class="print-row"><span>Total de Pedidos:</span><span>${count}</span></div>
+    <div class="print-row"><span>Faturamento Total:</span><span>${fmt(fat)}</span></div>
+    <div class="print-row"><span>Ticket Médio:</span><span>${fmt(ticket)}</span></div>
+    <div class="print-line"></div>
+    ${Object.entries(byStatus).map(([s,n])=>`<div class="print-row"><span>${s}</span><span>${n}</span></div>`).join('')}
+    ${topDishes.length ? `<div class="print-line"></div>
+    <div class="print-bold print-center" style="margin:4px 0;">TOP PRATOS</div>
+    ${topDishes.map(([n,c])=>`<div class="print-row"><span>${n}</span><span>${c}x</span></div>`).join('')}` : ''}
+    <div class="print-line"></div>
+    <div style="font-size:10px;text-align:center;">Impresso em ${new Date().toLocaleString('pt-BR')}</div>
+  `;
+  window.print();
+  setTimeout(()=>{ printEl.innerHTML = ''; }, 1500);
+};
 
 // ── QZ TRAY INTEGRATION ────────────────────────────────────────
 let qzConnected = false;
@@ -2586,6 +2645,7 @@ function buildESCPOS(p) {
     const val   = 'R$' + (preco * qty).toFixed(2).replace('.',',');
     b(...BOLD_ON); padLine(nome, val, W); b(...BOLD_OFF);
     if (i.sabor) { s('   Sabor: ' + i.sabor); b(0x0A); }
+    if (i.obs)   { s('   Obs: ' + i.obs); b(0x0A); }
   });
   div('-', W);
 
@@ -2697,7 +2757,7 @@ window.onItemSearch = function(val) {
   const q = val.toLowerCase();
   const pratos = PRATOS_LIST.map(pr => {
     const fb = cardapioData.pratos[pr.id] || {};
-    return { nome: fb.nome||pr.nome, preco: fb.preco!==undefined ? fb.preco : pr.preco };
+    return { nome: fb.nome||pr.nome, preco: (fb.preco != null) ? fb.preco : pr.preco };
   });
   const matches = pratos.filter(p => p.nome.toLowerCase().includes(q)).slice(0, 8);
   if (!matches.length) { dd.style.display='none'; return; }
@@ -2710,7 +2770,7 @@ window.onItemSearch = function(val) {
 
 window.selectItem = function(nome, preco) {
   document.getElementById('mnItemSearch').value = nome;
-  document.getElementById('mnItemPrice').value = preco > 0 ? preco : '';
+  document.getElementById('mnItemPrice').value = (preco != null && preco !== undefined && preco !== '') ? preco : '';
   document.getElementById('mnItemDropdown').style.display = 'none';
   document.getElementById('mnItemQty').focus();
 };
@@ -2758,6 +2818,11 @@ function renderManualItems() {
 }
 
 window.removeManualItem = function(idx) { manualItems.splice(idx,1); renderManualItems(); };
+
+window.addItemFromCatalog = function(nome, preco) {
+  manualItems.push({ name: nome, qty: 1, price: preco != null ? preco : 0, sabor: '' });
+  renderManualItems();
+};
 
 window.saveManualOrder = async function() {
   const nome = document.getElementById('mnNome').value.trim();
