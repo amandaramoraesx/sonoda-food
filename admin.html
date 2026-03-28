@@ -2480,6 +2480,19 @@ function renderRelatorio() {
   list.forEach(p=>(p.items||[]).forEach(i=>{ dishCount[i.name]=(dishCount[i.name]||0)+(i.qty||1); }));
   const topDishes = Object.entries(dishCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
   const periodoLabel = getRelatLabel();
+  // ── Breakdown por forma de pagamento ──
+  const byPagto = {};
+  list.forEach(p => {
+    const pg = p.pagto || 'Não informado';
+    if (!byPagto[pg]) byPagto[pg] = { count: 0, total: 0 };
+    byPagto[pg].count++;
+    byPagto[pg].total += (p.total || 0);
+  });
+  const pagtoOrder = ['Dinheiro','PIX','Cartão Débito','Cartão Crédito','Fiado','Não informado'];
+  const pagtoEntries = [...Object.entries(byPagto)].sort((a,b)=>{
+    const ia = pagtoOrder.indexOf(a[0]); const ib = pagtoOrder.indexOf(b[0]);
+    return (ia===-1?99:ia)-(ib===-1?99:ib);
+  });
   document.getElementById('relatContent').innerHTML = `
     <div class="card">
       <div class="card-title">Vendas — ${periodoLabel}</div>
@@ -2490,6 +2503,9 @@ function renderRelatorio() {
       </div>
       <div class="dre-section-title">Por Status</div>
       ${Object.entries(byStatus).map(([s,n])=>`<div class="dre-row"><span>${badgeHtml(s)}</span><span>${n}</span></div>`).join('')}
+      ${pagtoEntries.length?`<div class="dre-section-title">💳 Por Forma de Pagamento</div>
+      <div class="dre-row" style="font-weight:700;font-size:12px;color:#888;"><span>Forma</span><span>Qtd</span><span>Total</span></div>
+      ${pagtoEntries.map(([pg,v])=>`<div class="dre-row"><span>${pg}</span><span>${v.count}x</span><span style="font-weight:700;">${fmt(v.total)}</span></div>`).join('')}`:''}
       ${topDishes.length?`<div class="dre-section-title">Top Pratos</div>
       ${topDishes.map(([n,c])=>`<div class="dre-row"><span>${n}</span><span>${c}x</span></div>`).join('')}`:''}
     </div>`;
@@ -2513,6 +2529,19 @@ window.printRelatorio = function() {
     const diaria = entregasP.length > 0 ? (e.valorFixoDiario || 0) : 0;
     return { nome: e.nome, entregas: entregasP.length, taxa: taxaP, diaria, total: taxaP + diaria };
   }).filter(e => e.entregas > 0);
+  // ── Breakdown por forma de pagamento ──
+  const byPagto = {};
+  list.forEach(p => {
+    const pg = p.pagto || 'Nao informado';
+    if (!byPagto[pg]) byPagto[pg] = { count: 0, total: 0 };
+    byPagto[pg].count++;
+    byPagto[pg].total += (p.total || 0);
+  });
+  const pagtoOrder = ['Dinheiro','PIX','Cartao Debito','Cartao Credito','Fiado','Nao informado'];
+  const pagtoEntries = [...Object.entries(byPagto)].sort((a,b)=>{
+    const ia = pagtoOrder.indexOf(a[0]); const ib = pagtoOrder.indexOf(b[0]);
+    return (ia===-1?99:ia)-(ib===-1?99:ib);
+  });
 
   const printEl = document.getElementById('printRelatorio');
   printEl.innerHTML = `
@@ -2527,6 +2556,11 @@ window.printRelatorio = function() {
     <hr class="rel-divider">
     <div class="rel-section">Por Status</div>
     ${Object.entries(byStatus).map(([s,n])=>`<div class="rel-row"><span>${s}</span><span><b>${n}</b></span></div>`).join('')}
+    ${pagtoEntries.length ? `
+    <hr class="rel-divider">
+    <div class="rel-section">Forma de Pagamento</div>
+    <div class="rel-row" style="font-weight:900;font-size:11px;"><span>Forma</span><span>Qtd</span><span>Total</span></div>
+    ${pagtoEntries.map(([pg,v])=>`<div class="rel-row"><span>${pg}</span><span><b>${v.count}x</b></span><span><b>${fmt(v.total)}</b></span></div>`).join('')}` : ''}
     ${topDishes.length ? `
     <hr class="rel-divider">
     <div class="rel-section">Top Pratos</div>
