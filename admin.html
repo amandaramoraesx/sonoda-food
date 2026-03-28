@@ -1607,10 +1607,15 @@ function renderCozinha() {
   const el = document.getElementById('cozinhaList');
   const count = document.getElementById('cozinhaCount');
   let list = Object.entries(allPedidos)
-    .filter(([,p]) => ['novo','preparo'].includes(p.status))
+    .filter(([,p]) => {
+      if (!['novo','preparo'].includes(p.status)) return false;
+      // Entregador só vê pedidos de entrega (não retirada)
+      if (currentRole === 'entregador' && p.tipo !== 'entrega') return false;
+      return true;
+    })
     .sort((a,b) => (a[1].timestamp||0)-(b[1].timestamp||0));
   count.textContent = list.length + ' pedido' + (list.length!==1?'s':'');
-  if (!list.length) { el.innerHTML = '<div class="empty-state"><div class="icon">🍳</div><p>Nenhum pedido para preparar.</p></div>'; return; }
+  if (!list.length) { el.innerHTML = '<div class="empty-state"><div class="icon">🍳</div><p>Nenhum pedido de entrega para preparar.</p></div>'; return; }
   el.innerHTML = list.map(([id,p]) => cozinhaCardHtml(id, p)).join('');
 }
 
@@ -1689,35 +1694,42 @@ function renderEntregas() {
   const histEl = document.getElementById('entregasHistory');
   const nowDate = new Date();
   const todayStr = nowDate.toDateString();
+  // Somente pedidos de ENTREGA (nunca retirada)
   const prontos = Object.entries(allPedidos)
-    .filter(([,p]) => ['pronto','entrega'].includes(p.status))
+    .filter(([,p]) => ['pronto','entrega'].includes(p.status) && p.tipo === 'entrega')
     .sort((a,b) => (a[1].timestamp||0)-(b[1].timestamp||0));
   const todayDone = Object.entries(allPedidos)
-    .filter(([,p]) => p.status==='entregue' && p.timestamp && new Date(p.timestamp).toDateString()===todayStr);
+    .filter(([,p]) => p.status==='entregue' && p.tipo==='entrega' && p.timestamp && new Date(p.timestamp).toDateString()===todayStr);
   // Stats
   document.getElementById('entregasHojeCount').textContent = todayDone.length;
   const taxaHoje = todayDone.reduce((s,[,p])=>s+(p.taxa||0),0);
   document.getElementById('entregasTaxaHoje').textContent = fmt(taxaHoje);
   // List
-  if (!prontos.length) { entregasList.innerHTML = '<div class="empty-state"><p>Nenhum pedido para entrega.</p></div>'; }
+  if (!prontos.length) { entregasList.innerHTML = '<div class="empty-state"><p>Nenhum pedido para entrega no momento.</p></div>'; }
   else {
     entregasList.innerHTML = prontos.map(([id,p]) => {
       const addr = `${p.endereco||''} ${p.numero||''}, ${p.bairro||''}`;
-      return `<div class="order-card">
+      const ref = p.refLocal ? `<div class="order-info-item"><span class="lbl">Referência</span><span>${p.refLocal}</span></div>` : '';
+      const obs = p.obs ? `<div style="background:#fef3c7;border-radius:6px;padding:8px;font-size:.85rem;margin-top:8px;">💬 ${p.obs}</div>` : '';
+      return `<div class="order-card" style="border-left:4px solid #c0392b;">
         <div class="order-header">
           <span class="order-num">#${p.num||'—'}</span>${badgeHtml(p.status)}
           <span style="font-size:.8rem;color:var(--gray)">${fmtDate(p.timestamp)}</span>
         </div>
         <div class="order-body">
           <div class="order-info-grid">
-            <div class="order-info-item"><span class="lbl">Cliente</span><span>${p.nome}</span></div>
-            <div class="order-info-item"><span class="lbl">Telefone</span><span>${p.telefone||'—'}</span></div>
-            <div class="order-info-item"><span class="lbl">Endereço</span><span>${addr}</span></div>
-            <div class="order-info-item"><span class="lbl">Total / Taxa</span><span>${fmt(p.total)} / Taxa: ${fmt(p.taxa)}</span></div>
+            <div class="order-info-item"><span class="lbl">👤 Cliente</span><span style="font-weight:700;">${p.nome}</span></div>
+            <div class="order-info-item"><span class="lbl">📱 Telefone</span><span>${p.telefone||'—'}</span></div>
+            <div class="order-info-item"><span class="lbl">📍 Endereço</span><span style="font-weight:700;">${addr}</span></div>
+            ${ref}
+            <div class="order-info-item"><span class="lbl">💳 Pagamento</span><span>${p.pagto||'—'}</span></div>
+            <div class="order-info-item"><span class="lbl">💰 Taxa</span><span style="font-weight:700;color:#c0392b;">${fmt(p.taxa)}</span></div>
           </div>
-          <div class="order-actions">
-            ${p.status==='pronto'?`<button class="btn btn-primary btn-sm" onclick="handleSaiuEntregaEnt('${id}')">🛵 Saiu para Entrega</button>`:''}
-            ${p.status==='entrega'?`<button class="btn btn-green btn-sm" onclick="updateStatus('${id}','entregue')">📬 Entregue</button>`:''}
+          ${obs}
+          <ul class="order-items" style="margin-top:8px;">${(p.items||[]).map(i=>`<li><span>${i.qty||1}x ${i.name}${i.sabor?' ('+i.sabor+')':''}</span></li>`).join('')}</ul>
+          <div class="order-actions" style="margin-top:10px;">
+            ${p.status==='pronto'?`<button class="btn btn-primary btn-sm" onclick="handleSaiuEntregaEnt('${id}')" style="font-size:1rem;padding:10px 20px;width:100%;">🛵 Saiu para Entrega</button>`:''}
+            ${p.status==='entrega'?`<button class="btn btn-green btn-sm" onclick="updateStatus('${id}','entregue')" style="font-size:1rem;padding:10px 20px;width:100%;">📬 Marcar como Entregue</button>`:''}
           </div>
         </div>
       </div>`;
@@ -1726,8 +1738,8 @@ function renderEntregas() {
   // History
   if (!todayDone.length) { histEl.innerHTML = '<div class="empty-state"><p>Nenhuma entrega concluída hoje.</p></div>'; }
   else {
-    histEl.innerHTML = `<div class="table-wrap"><table><thead><tr><th>#</th><th>Cliente</th><th>Endereço</th><th>Taxa</th><th>Total</th></tr></thead><tbody>
-    ${todayDone.map(([,p])=>`<tr><td>${p.num||'—'}</td><td>${p.nome}</td><td>${p.endereco||''} ${p.numero||''}</td><td>${fmt(p.taxa)}</td><td>${fmt(p.total)}</td></tr>`).join('')}
+    histEl.innerHTML = `<div class="table-wrap"><table><thead><tr><th>#</th><th>Cliente</th><th>Endereço</th><th>Taxa</th></tr></thead><tbody>
+    ${todayDone.map(([,p])=>`<tr><td>${p.num||'—'}</td><td>${p.nome}</td><td>${p.endereco||''} ${p.numero||''}, ${p.bairro||''}</td><td>${fmt(p.taxa)}</td></tr>`).join('')}
     </tbody></table></div>`;
   }
 }
@@ -1737,9 +1749,8 @@ window.handleSaiuEntregaEnt = function(id) {
   const upd = { status:'entrega' };
   if (currentEntregadorKey) upd.entregadorId = currentEntregadorKey;
   update(ref(db, `pedidos/${id}`), upd);
-  const msg = `Olá ${p.nome}! 🛵 Seu pedido da Sonoda já saiu para entrega! Em breve estará na sua porta. Obrigado pela preferência! 🍱`;
-  if (p.telefone) sendWhatsApp(p.telefone, msg);
-  showToast('Pedido saiu para entrega!');
+  // WhatsApp é enviado apenas pelo admin — entregador só atualiza o status
+  showToast('Pedido saiu para entrega! ✅');
 };
 
 // ── CLIENTES ───────────────────────────────────────────────────
