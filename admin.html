@@ -1477,6 +1477,20 @@ function orderCardHtml(id, p, role) {
   const items = (p.items||[]).map(i => `<li><span>${i.qty||1}x ${i.name}${i.sabor?' <em>('+i.sabor+')</em>':''}${i.obs?'<br><small style="color:#e67e00;">📝 '+i.obs+'</small>':''}</span><span>${fmt((i.price||0)*(i.qty||1))}</span></li>`).join('');
   const statusBtns = role==='admin' ? buildStatusBtns(id, p) : '';
   const addr = p.tipo==='entrega' ? `${p.endereco||''} ${p.numero||''}, ${p.bairro||''}` : 'Retirada no local';
+  // Seletor de entregador para pedidos de entrega (admin)
+  let entregadorRow = '';
+  if (role === 'admin' && p.tipo === 'entrega') {
+    const entOpts = Object.entries(allEntregadores)
+      .filter(([,e]) => e.ativo !== false)
+      .map(([eid,e]) => `<option value="${eid}" ${p.entregadorId===eid?'selected':''}>${e.nome}</option>`)
+      .join('');
+    const entNome = p.entregadorId && allEntregadores[p.entregadorId] ? allEntregadores[p.entregadorId].nome : '';
+    entregadorRow = `<div class="order-info-item"><span class="lbl">🛵 Entregador</span><span>
+      <select onchange="atribuirEntregador('${id}',this.value)" style="font-size:.8rem;padding:3px 6px;border-radius:6px;border:1px solid #ddd;max-width:150px;">
+        <option value="">— Atribuir —</option>${entOpts}
+      </select>
+    </span></div>`;
+  }
   return `<div class="order-card">
     <div class="order-header">
       <span class="order-num">#${p.num||'—'}</span>
@@ -1494,6 +1508,7 @@ function orderCardHtml(id, p, role) {
         <div class="order-info-item"><span class="lbl">Telefone</span><span>${p.telefone||'—'}</span></div>
         <div class="order-info-item"><span class="lbl">Endereço</span><span>${addr}</span></div>
         <div class="order-info-item"><span class="lbl">Pagamento</span><span>${p.pagto||'—'}</span></div>
+        ${entregadorRow}
       </div>
       <ul class="order-items">${items}</ul>
       ${p.obs?`<div style="font-size:.8rem;color:var(--gray);margin-bottom:8px;">💬 Obs: ${p.obs}</div>`:''}
@@ -1531,6 +1546,13 @@ window.updateStatus = async function(id, newStatus) {
   await update(ref(db, `pedidos/${id}`), { status: newStatus });
   if (newStatus === 'entregue') autoSaveCliente(allPedidos[id]);
   showToast(`Status → ${statusLabel[newStatus]}`, 'success');
+};
+
+window.atribuirEntregador = async function(id, entregadorId) {
+  if (!id) return;
+  await update(ref(db, `pedidos/${id}`), { entregadorId: entregadorId || null });
+  const nome = entregadorId && allEntregadores[entregadorId] ? allEntregadores[entregadorId].nome : 'nenhum';
+  showToast(`Entregador: ${nome}`, 'success');
 };
 
 window.deletePedido = async function(id) {
@@ -2493,6 +2515,14 @@ function renderRelatorio() {
     const ia = pagtoOrder.indexOf(a[0]); const ib = pagtoOrder.indexOf(b[0]);
     return (ia===-1?99:ia)-(ib===-1?99:ib);
   });
+  // ── Entregadores no período ──
+  const entregadoresResumoTela = Object.entries(allEntregadores).map(([id, e]) => {
+    const entregasP = list.filter(p => p.status === 'entregue' && p.entregadorId === id);
+    const taxaP = entregasP.reduce((s, p) => s + (p.taxa || 0), 0);
+    const diasTrab = new Set(entregasP.map(p => new Date(p.timestamp||0).toDateString())).size;
+    const diaria = diasTrab * (e.valorFixoDiario || 0);
+    return { nome: e.nome, entregas: entregasP.length, taxa: taxaP, diaria, dias: diasTrab, total: taxaP + diaria };
+  }).filter(e => e.entregas > 0);
   document.getElementById('relatContent').innerHTML = `
     <div class="card">
       <div class="card-title">Vendas — ${periodoLabel}</div>
@@ -2506,6 +2536,9 @@ function renderRelatorio() {
       ${pagtoEntries.length?`<div class="dre-section-title">💳 Por Forma de Pagamento</div>
       <div class="dre-row" style="font-weight:700;font-size:12px;color:#888;"><span>Forma</span><span>Qtd</span><span>Total</span></div>
       ${pagtoEntries.map(([pg,v])=>`<div class="dre-row"><span>${pg}</span><span>${v.count}x</span><span style="font-weight:700;">${fmt(v.total)}</span></div>`).join('')}`:''}
+      ${entregadoresResumoTela.length?`<div class="dre-section-title">🛵 Entregadores — Custo de Entrega</div>
+      <div class="dre-row" style="font-weight:700;font-size:12px;color:#888;"><span>Nome</span><span>Entregas</span><span>Taxas</span><span>Fixo (${entregadoresResumoTela[0]&&allEntregadores[Object.keys(allEntregadores)[0]]?'R$'+((Object.values(allEntregadores)[0]?.valorFixoDiario)||0)+'/dia':'R$/dia'})</span><span style="font-weight:800;color:#16a34a;">Total Pago</span></div>
+      ${entregadoresResumoTela.map(e=>`<div class="dre-row"><span>${e.nome}</span><span>${e.entregas}x</span><span>${fmt(e.taxa)}</span><span>${fmt(e.diaria)} (${e.dias}d)</span><span style="font-weight:800;color:#16a34a;">${fmt(e.total)}</span></div>`).join('')}`:''}
       ${topDishes.length?`<div class="dre-section-title">Top Pratos</div>
       ${topDishes.map(([n,c])=>`<div class="dre-row"><span>${n}</span><span>${c}x</span></div>`).join('')}`:''}
     </div>`;
@@ -2526,8 +2559,9 @@ window.printRelatorio = function() {
   const entregadoresResumo = Object.entries(allEntregadores).map(([id, e]) => {
     const entregasP = list.filter(p => p.status === 'entregue' && p.entregadorId === id);
     const taxaP = entregasP.reduce((s, p) => s + (p.taxa || 0), 0);
-    const diaria = entregasP.length > 0 ? (e.valorFixoDiario || 0) : 0;
-    return { nome: e.nome, entregas: entregasP.length, taxa: taxaP, diaria, total: taxaP + diaria };
+    const diasTrab = new Set(entregasP.map(p => new Date(p.timestamp||0).toDateString())).size;
+    const diaria = diasTrab * (e.valorFixoDiario || 0);
+    return { nome: e.nome, entregas: entregasP.length, taxa: taxaP, diaria, dias: diasTrab, total: taxaP + diaria };
   }).filter(e => e.entregas > 0);
   // ── Breakdown por forma de pagamento ──
   const byPagto = {};
@@ -2567,13 +2601,13 @@ window.printRelatorio = function() {
     ${topDishes.map(([n,c])=>`<div class="rel-row"><span>${n}</span><span><b>${c}x</b></span></div>`).join('')}` : ''}
     ${entregadoresResumo.length ? `
     <hr class="rel-divider">
-    <div class="rel-section">Entregadores — ${periodoLabel}</div>
-    <div class="rel-row" style="font-weight:900;"><span>Nome</span><span>Entregas</span><span>Taxas</span><span>Diaria</span><span>Total</span></div>
+    <div class="rel-section">Entregadores — Custo de Entrega</div>
+    <div class="rel-row" style="font-weight:900;font-size:11px;"><span>Nome</span><span>Entregas</span><span>Taxas</span><span>Fixo</span><span>Total Pago</span></div>
     ${entregadoresResumo.map(e=>`<div class="rel-row">
       <span>${e.nome}</span>
       <span>${e.entregas}x</span>
       <span>${fmt(e.taxa)}</span>
-      <span>${fmt(e.diaria)}</span>
+      <span>${fmt(e.diaria)} (${e.dias}d)</span>
       <span><b>${fmt(e.total)}</b></span>
     </div>`).join('')}` : ''}
     <div class="rel-footer">Impresso em ${new Date().toLocaleString('pt-BR')}</div>
