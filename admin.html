@@ -205,14 +205,29 @@ tr:hover td{background:#fafafa;}
 
 /* PRINT */
 #printArea{display:none;}
+#printRelatorio{display:none;}
 @media print{
   body>*{display:none!important;}
+  /* Cupom térmico (pedidos) */
   #printArea{display:block!important;font-family:'Courier New',monospace;font-size:12px;width:80mm;margin:0 auto;}
   #printArea .print-line{border-bottom:1px dashed #000;margin:4px 0;}
   #printArea .print-center{text-align:center;}
   #printArea .print-bold{font-weight:bold;}
   #printArea .print-row{display:flex;justify-content:space-between;}
   #printArea .print-title{font-size:16px;font-weight:bold;text-align:center;margin:8px 0;}
+  /* Relatório A4 */
+  #printRelatorio{display:block!important;font-family:'Segoe UI',Arial,sans-serif;font-size:13px;width:100%;max-width:700px;margin:0 auto;padding:20px;}
+  #printRelatorio h1{font-size:20px;font-weight:700;text-align:center;margin-bottom:4px;}
+  #printRelatorio .rel-sub{text-align:center;color:#555;font-size:12px;margin-bottom:16px;}
+  #printRelatorio .rel-divider{border:none;border-top:1.5px solid #333;margin:10px 0;}
+  #printRelatorio .rel-stats{display:flex;justify-content:space-around;margin:12px 0;gap:8px;}
+  #printRelatorio .rel-stat-box{text-align:center;flex:1;border:1px solid #ddd;border-radius:6px;padding:8px;}
+  #printRelatorio .rel-stat-val{font-size:18px;font-weight:700;}
+  #printRelatorio .rel-stat-lbl{font-size:10px;color:#555;text-transform:uppercase;}
+  #printRelatorio .rel-section{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:12px 0 4px;color:#333;}
+  #printRelatorio .rel-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #eee;font-size:12px;}
+  #printRelatorio .rel-footer{margin-top:16px;font-size:10px;color:#888;text-align:center;}
+  @page{size:A4;margin:15mm;}
 }
 
 /* HAMBURGER */
@@ -980,8 +995,10 @@ tr:hover td{background:#fafafa;}
   <div id="notifList" style="padding:8px;"></div>
 </div>
 
-<!-- Print Area -->
+<!-- Print Area (cupom térmico) -->
 <div id="printArea"></div>
+<!-- Print Relatório (A4) -->
+<div id="printRelatorio"></div>
 
 <!-- Toast Container -->
 <div id="toastContainer"></div>
@@ -2488,21 +2505,24 @@ window.printRelatorio = function() {
   const periodoLabel = getRelatLabel();
   const byStatus = {};
   list.forEach(p=>{ byStatus[p.status]=(byStatus[p.status]||0)+1; });
-  const printEl = document.getElementById('printArea');
+  const printEl = document.getElementById('printRelatorio');
   printEl.innerHTML = `
-    <div class="print-center print-bold print-title">SONODA FOOD</div>
-    <div class="print-center" style="font-size:10px;margin-bottom:4px;">Relatório de Vendas — ${periodoLabel}</div>
-    <div class="print-line"></div>
-    <div class="print-row"><span>Total de Pedidos:</span><span>${count}</span></div>
-    <div class="print-row"><span>Faturamento Total:</span><span>${fmt(fat)}</span></div>
-    <div class="print-row"><span>Ticket Médio:</span><span>${fmt(ticket)}</span></div>
-    <div class="print-line"></div>
-    ${Object.entries(byStatus).map(([s,n])=>`<div class="print-row"><span>${s}</span><span>${n}</span></div>`).join('')}
-    ${topDishes.length ? `<div class="print-line"></div>
-    <div class="print-bold print-center" style="margin:4px 0;">TOP PRATOS</div>
-    ${topDishes.map(([n,c])=>`<div class="print-row"><span>${n}</span><span>${c}x</span></div>`).join('')}` : ''}
-    <div class="print-line"></div>
-    <div style="font-size:10px;text-align:center;">Impresso em ${new Date().toLocaleString('pt-BR')}</div>
+    <h1>🍱 SONODA FOOD</h1>
+    <div class="rel-sub">Relatório de Vendas — ${periodoLabel}</div>
+    <hr class="rel-divider">
+    <div class="rel-stats">
+      <div class="rel-stat-box"><div class="rel-stat-val">${count}</div><div class="rel-stat-lbl">Total de Pedidos</div></div>
+      <div class="rel-stat-box"><div class="rel-stat-val">${fmt(fat)}</div><div class="rel-stat-lbl">Faturamento</div></div>
+      <div class="rel-stat-box"><div class="rel-stat-val">${fmt(ticket)}</div><div class="rel-stat-lbl">Ticket Médio</div></div>
+    </div>
+    <hr class="rel-divider">
+    <div class="rel-section">Por Status</div>
+    ${Object.entries(byStatus).map(([s,n])=>`<div class="rel-row"><span>${s}</span><span><b>${n}</b></span></div>`).join('')}
+    ${topDishes.length ? `
+    <hr class="rel-divider">
+    <div class="rel-section">Top Pratos</div>
+    ${topDishes.map(([n,c])=>`<div class="rel-row"><span>${n}</span><span><b>${c}x</b></span></div>`).join('')}` : ''}
+    <div class="rel-footer">Impresso em ${new Date().toLocaleString('pt-BR')}</div>
   `;
   window.print();
   setTimeout(()=>{ printEl.innerHTML = ''; }, 1500);
