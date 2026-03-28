@@ -215,20 +215,22 @@ tr:hover td{background:#fafafa;}
   #printArea .print-bold{font-weight:bold;}
   #printArea .print-row{display:flex;justify-content:space-between;}
   #printArea .print-title{font-size:16px;font-weight:bold;text-align:center;margin:8px 0;}
-  /* Relatório A4 — cores forçadas preto puro para impressão nítida */
-  #printRelatorio{display:block!important;font-family:'Courier New',monospace;font-size:13px;width:100%;max-width:700px;margin:0 auto;padding:20px;color:#000!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  /* Relatório A4 — uma página, legível */
+  #printRelatorio{display:block!important;font-family:'Courier New',monospace;font-size:12px;width:100%;max-width:720px;margin:0 auto;padding:10px 16px;color:#000!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   #printRelatorio *{color:#000!important;}
-  #printRelatorio h1{font-size:22px;font-weight:700;text-align:center;margin-bottom:2px;border-bottom:2px solid #000;padding-bottom:6px;}
-  #printRelatorio .rel-sub{text-align:center;font-size:13px;margin-bottom:14px;font-weight:600;}
-  #printRelatorio .rel-divider{border:none;border-top:2px solid #000;margin:10px 0;}
-  #printRelatorio .rel-stats{display:flex;justify-content:space-around;margin:14px 0;gap:10px;}
-  #printRelatorio .rel-stat-box{text-align:center;flex:1;border:2px solid #000;padding:10px 6px;}
-  #printRelatorio .rel-stat-val{font-size:20px;font-weight:900;display:block;}
-  #printRelatorio .rel-stat-lbl{font-size:10px;font-weight:700;text-transform:uppercase;display:block;margin-top:2px;}
-  #printRelatorio .rel-section{font-size:12px;font-weight:900;letter-spacing:1px;text-transform:uppercase;margin:14px 0 4px;border-bottom:1px solid #000;padding-bottom:2px;}
-  #printRelatorio .rel-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed #000;font-size:13px;}
-  #printRelatorio .rel-footer{margin-top:18px;font-size:11px;text-align:center;border-top:1px solid #000;padding-top:6px;font-weight:600;}
-  @page{size:A4;margin:15mm;}
+  #printRelatorio h1{font-size:20px;font-weight:700;text-align:center;margin-bottom:1px;border-bottom:2px solid #000;padding-bottom:4px;}
+  #printRelatorio .rel-sub{text-align:center;font-size:12px;margin-bottom:8px;font-weight:600;}
+  #printRelatorio .rel-divider{border:none;border-top:2px solid #000;margin:6px 0;}
+  #printRelatorio .rel-stats{display:flex;justify-content:space-around;margin:8px 0;gap:8px;}
+  #printRelatorio .rel-stat-box{text-align:center;flex:1;border:2px solid #000;padding:7px 4px;}
+  #printRelatorio .rel-stat-val{font-size:18px;font-weight:900;display:block;}
+  #printRelatorio .rel-stat-lbl{font-size:9px;font-weight:700;text-transform:uppercase;display:block;margin-top:1px;}
+  #printRelatorio .rel-section{font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;margin:8px 0 2px;border-bottom:1px solid #000;padding-bottom:1px;}
+  #printRelatorio .rel-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed #000;font-size:12px;}
+  /* Grid de 2 colunas para pagamento + top pratos lado a lado */
+  #printRelatorio .rel-two-col{display:grid;grid-template-columns:1fr 1fr;gap:0 20px;}
+  #printRelatorio .rel-footer{margin-top:10px;font-size:10px;text-align:center;border-top:1px solid #000;padding-top:4px;font-weight:600;}
+  @page{size:A4;margin:8mm;}
 }
 
 /* HAMBURGER */
@@ -2584,6 +2586,8 @@ window.printRelatorio = function() {
   });
 
   const printEl = document.getElementById('printRelatorio');
+  // Top 5 pratos para caber em uma página
+  const topDishesShow = topDishes.slice(0, 5);
   printEl.innerHTML = `
     <h1>SONODA FOOD</h1>
     <div class="rel-sub">Relatorio de Vendas — ${periodoLabel}</div>
@@ -2596,19 +2600,26 @@ window.printRelatorio = function() {
     <hr class="rel-divider">
     <div class="rel-section">Por Status</div>
     ${Object.entries(byStatus).map(([s,n])=>`<div class="rel-row"><span>${s}</span><span><b>${n}</b></span></div>`).join('')}
-    ${pagtoEntries.length ? `
     <hr class="rel-divider">
-    <div class="rel-section">Forma de Pagamento</div>
-    <div class="rel-row" style="font-weight:900;font-size:11px;"><span>Forma</span><span>Qtd</span><span>Total</span></div>
-    ${pagtoEntries.map(([pg,v])=>`<div class="rel-row"><span>${pg}</span><span><b>${v.count}x</b></span><span><b>${fmt(v.total)}</b></span></div>`).join('')}` : ''}
-    ${topDishes.length ? `
-    <hr class="rel-divider">
-    <div class="rel-section">Top Pratos</div>
-    ${topDishes.map(([n,c])=>`<div class="rel-row"><span>${n}</span><span><b>${c}x</b></span></div>`).join('')}` : ''}
+    <div class="rel-two-col">
+      <div>
+        ${pagtoEntries.length ? `
+        <div class="rel-section">Forma de Pagamento</div>
+        <div class="rel-row" style="font-weight:900;font-size:10px;"><span>Forma</span><span>Qtd</span><span>Total</span></div>
+        ${pagtoEntries.map(([pg,v])=>`<div class="rel-row"><span>${pg}</span><span><b>${v.count}x</b></span><span><b>${fmt(v.total)}</b></span></div>`).join('')}
+        ` : ''}
+      </div>
+      <div>
+        ${topDishesShow.length ? `
+        <div class="rel-section">Top 5 Pratos</div>
+        ${topDishesShow.map(([n,c])=>`<div class="rel-row"><span>${n}</span><span><b>${c}x</b></span></div>`).join('')}
+        ` : ''}
+      </div>
+    </div>
     ${entregadoresResumo.length ? `
     <hr class="rel-divider">
     <div class="rel-section">Custo de Entrega — ${periodoLabel}</div>
-    <div class="rel-row" style="font-weight:900;font-size:11px;"><span>Entregador</span><span>Entregas</span><span>Taxas</span><span>Fixo (dias)</span><span>Total Pago</span></div>
+    <div class="rel-row" style="font-weight:900;font-size:10px;"><span>Entregador</span><span>Entregas</span><span>Taxas</span><span>Fixo${entregadoresResumo.some(e=>e.dias>1)?' (dias)':''}</span><span>Total Pago</span></div>
     ${entregadoresResumo.map(e=>`<div class="rel-row">
       <span>${e.nome}</span>
       <span>${e.entregas}x</span>
@@ -2616,17 +2627,22 @@ window.printRelatorio = function() {
       <span>${fmt(e.diaria)}${e.dias>1?' ('+e.dias+'d)':''}</span>
       <span><b>${fmt(e.total)}</b></span>
     </div>`).join('')}
-    <div class="rel-row" style="border-top:2px solid #000;margin-top:4px;font-weight:900;">
-      <span>Total Despesa Entregadores</span><span></span><span></span><span></span>
+    <div class="rel-row" style="border-top:2px solid #000;margin-top:2px;font-weight:900;font-size:12px;">
+      <span>Despesa Total Entregadores</span><span></span><span></span><span></span>
       <span>${fmt(totalEntregadores)}</span>
     </div>
     <hr class="rel-divider">
     <div class="rel-section">Resultado — ${periodoLabel}</div>
-    <div class="rel-row"><span>Faturamento Bruto</span><span><b>${fmt(fat)}</b></span></div>
-    <div class="rel-row"><span>(-) Custo Entregadores</span><span><b>- ${fmt(totalEntregadores)}</b></span></div>
-    <div class="rel-row" style="border-top:2px solid #000;margin-top:4px;font-size:15px;font-weight:900;">
+    <div class="rel-row" style="font-size:13px;"><span>Faturamento Bruto</span><span><b>${fmt(fat)}</b></span></div>
+    <div class="rel-row" style="font-size:13px;"><span>(-) Custo Entregadores</span><span><b>- ${fmt(totalEntregadores)}</b></span></div>
+    <div class="rel-row" style="border-top:2px solid #000;margin-top:3px;font-size:16px;font-weight:900;">
       <span>= LUCRO LIQUIDO</span><span>${fmt(lucroLiquido)}</span>
-    </div>` : ''}
+    </div>` : `
+    <hr class="rel-divider">
+    <div style="font-size:11px;color:#555;text-align:center;padding:6px 0;">
+      ⚠️ Nenhum entregador atribuido aos pedidos do periodo.<br>
+      Atribua o entregador nos cards de pedido para ver o custo.
+    </div>`}
     <div class="rel-footer">Impresso em ${new Date().toLocaleString('pt-BR')}</div>
   `;
   window.print();
