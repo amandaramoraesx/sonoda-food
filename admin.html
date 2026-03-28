@@ -2555,13 +2555,16 @@ window.printRelatorio = function() {
   const periodoLabel = getRelatLabel();
   const byStatus = {};
   list.forEach(p=>{ byStatus[p.status]=(byStatus[p.status]||0)+1; });
-  // ── Dados dos entregadores no período ──
+  // ── Dados dos entregadores APENAS do dia de hoje (impressão) ──
+  const hojeStr = new Date().toDateString();
+  const pedidosHoje = Object.values(allPedidos).filter(p =>
+    p.status === 'entregue' && p.timestamp && new Date(p.timestamp).toDateString() === hojeStr
+  );
   const entregadoresResumo = Object.entries(allEntregadores).map(([id, e]) => {
-    const entregasP = list.filter(p => p.status === 'entregue' && p.entregadorId === id);
+    const entregasP = pedidosHoje.filter(p => p.entregadorId === id);
     const taxaP = entregasP.reduce((s, p) => s + (p.taxa || 0), 0);
-    const diasTrab = new Set(entregasP.map(p => new Date(p.timestamp||0).toDateString())).size;
-    const diaria = diasTrab * (e.valorFixoDiario || 0);
-    return { nome: e.nome, entregas: entregasP.length, taxa: taxaP, diaria, dias: diasTrab, total: taxaP + diaria };
+    const diaria = entregasP.length > 0 ? (e.valorFixoDiario || 0) : 0;
+    return { nome: e.nome, entregas: entregasP.length, taxa: taxaP, diaria, total: taxaP + diaria };
   }).filter(e => e.entregas > 0);
   // ── Breakdown por forma de pagamento ──
   const byPagto = {};
@@ -2601,13 +2604,13 @@ window.printRelatorio = function() {
     ${topDishes.map(([n,c])=>`<div class="rel-row"><span>${n}</span><span><b>${c}x</b></span></div>`).join('')}` : ''}
     ${entregadoresResumo.length ? `
     <hr class="rel-divider">
-    <div class="rel-section">Entregadores — Custo de Entrega</div>
-    <div class="rel-row" style="font-weight:900;font-size:11px;"><span>Nome</span><span>Entregas</span><span>Taxas</span><span>Fixo</span><span>Total Pago</span></div>
+    <div class="rel-section">Entregadores — Hoje (${new Date().toLocaleDateString('pt-BR')})</div>
+    <div class="rel-row" style="font-weight:900;font-size:11px;"><span>Nome</span><span>Entregas</span><span>Taxas</span><span>Fixo Diario</span><span>Total Pago</span></div>
     ${entregadoresResumo.map(e=>`<div class="rel-row">
       <span>${e.nome}</span>
       <span>${e.entregas}x</span>
       <span>${fmt(e.taxa)}</span>
-      <span>${fmt(e.diaria)} (${e.dias}d)</span>
+      <span>${fmt(e.diaria)}</span>
       <span><b>${fmt(e.total)}</b></span>
     </div>`).join('')}` : ''}
     <div class="rel-footer">Impresso em ${new Date().toLocaleString('pt-BR')}</div>
