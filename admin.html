@@ -215,22 +215,24 @@ tr:hover td{background:#fafafa;}
   #printArea .print-bold{font-weight:bold;}
   #printArea .print-row{display:flex;justify-content:space-between;}
   #printArea .print-title{font-size:16px;font-weight:bold;text-align:center;margin:8px 0;}
-  /* Relatório A4 — uma página, legível */
-  #printRelatorio{display:block!important;font-family:'Courier New',monospace;font-size:13px;width:100%;max-width:720px;margin:0 auto;padding:10px 18px;color:#000!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  /* Relatório A4 — forçar página A4 e ocupar bem o espaço */
+  @page{size:210mm 297mm;margin:12mm;}
+  #printRelatorio{display:block!important;font-family:'Arial',sans-serif;font-size:15px;width:186mm;margin:0 auto;padding:0;color:#000!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   #printRelatorio *{color:#000!important;}
-  #printRelatorio h1{font-size:22px;font-weight:900;text-align:center;margin-bottom:1px;border-bottom:3px solid #000;padding-bottom:4px;letter-spacing:2px;}
-  #printRelatorio .rel-sub{text-align:center;font-size:13px;margin-bottom:8px;font-weight:700;}
-  #printRelatorio .rel-divider{border:none;border-top:2px solid #000;margin:6px 0;}
-  #printRelatorio .rel-stats{display:flex;justify-content:space-around;margin:8px 0;gap:8px;}
-  #printRelatorio .rel-stat-box{text-align:center;flex:1;border:2px solid #000;padding:8px 4px;}
-  #printRelatorio .rel-stat-val{font-size:20px;font-weight:900;display:block;}
-  #printRelatorio .rel-stat-lbl{font-size:9px;font-weight:700;text-transform:uppercase;display:block;margin-top:2px;}
-  #printRelatorio .rel-section{font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;margin:8px 0 3px;border-bottom:2px solid #000;padding-bottom:2px;}
-  #printRelatorio .rel-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed #000;font-size:13px;font-weight:700;}
+  #printRelatorio h1{font-size:28px;font-weight:900;text-align:center;margin-bottom:2px;border-bottom:3px solid #000;padding-bottom:6px;letter-spacing:3px;}
+  #printRelatorio .rel-sub{text-align:center;font-size:15px;margin-bottom:12px;font-weight:700;}
+  #printRelatorio .rel-divider{border:none;border-top:2px solid #000;margin:8px 0;}
+  #printRelatorio .rel-stats{display:flex;justify-content:space-around;margin:10px 0;gap:10px;}
+  #printRelatorio .rel-stat-box{text-align:center;flex:1;border:3px solid #000;padding:12px 6px;}
+  #printRelatorio .rel-stat-val{font-size:26px;font-weight:900;display:block;}
+  #printRelatorio .rel-stat-lbl{font-size:11px;font-weight:700;text-transform:uppercase;display:block;margin-top:3px;}
+  #printRelatorio .rel-section{font-size:13px;font-weight:900;letter-spacing:1px;text-transform:uppercase;margin:10px 0 4px;border-bottom:2px solid #000;padding-bottom:3px;}
+  #printRelatorio .rel-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #000;font-size:15px;font-weight:700;}
   /* Grid de 2 colunas para pagamento + top pratos lado a lado */
-  #printRelatorio .rel-two-col{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;}
-  #printRelatorio .rel-footer{margin-top:10px;font-size:11px;text-align:center;border-top:2px solid #000;padding-top:5px;font-weight:700;}
-  @page{size:A4;margin:8mm;}
+  #printRelatorio .rel-two-col{display:grid;grid-template-columns:1fr 1fr;gap:0 30px;}
+  #printRelatorio .rel-footer{margin-top:14px;font-size:12px;text-align:center;border-top:2px solid #000;padding-top:6px;font-weight:700;}
+  #printRelatorio .rel-resultado{font-size:18px;font-weight:900;padding:8px 0;border-bottom:1px dashed #000;}
+  #printRelatorio .rel-lucro{font-size:22px;font-weight:900;padding:8px 0;border-top:3px solid #000;margin-top:4px;}
 }
 
 /* HAMBURGER */
@@ -2633,11 +2635,9 @@ window.printRelatorio = function() {
     </div>
     <hr class="rel-divider">
     <div class="rel-section">Resultado — ${periodoLabel}</div>
-    <div class="rel-row" style="font-size:13px;"><span>Faturamento Bruto</span><span><b>${fmt(fat)}</b></span></div>
-    <div class="rel-row" style="font-size:13px;"><span>(-) Custo Entregadores</span><span><b>- ${fmt(totalEntregadores)}</b></span></div>
-    <div class="rel-row" style="border-top:2px solid #000;margin-top:3px;font-size:16px;font-weight:900;">
-      <span>= LUCRO LIQUIDO</span><span>${fmt(lucroLiquido)}</span>
-    </div>` : `
+    <div class="rel-resultado" style="display:flex;justify-content:space-between;"><span>Faturamento Bruto</span><span>${fmt(fat)}</span></div>
+    <div class="rel-resultado" style="display:flex;justify-content:space-between;"><span>(-) Custo Entregadores</span><span>- ${fmt(totalEntregadores)}</span></div>
+    <div class="rel-lucro" style="display:flex;justify-content:space-between;"><span>= LUCRO LÍQUIDO</span><span>${fmt(lucroLiquido)}</span></div>` : `
     <hr class="rel-divider">
     <div style="font-size:11px;color:#555;text-align:center;padding:6px 0;">
       ⚠️ Nenhum entregador atribuido aos pedidos do periodo.<br>
