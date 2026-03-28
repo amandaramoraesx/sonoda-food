@@ -215,22 +215,22 @@ tr:hover td{background:#fafafa;}
   #printArea .print-bold{font-weight:bold;}
   #printArea .print-row{display:flex;justify-content:space-between;}
   #printArea .print-title{font-size:16px;font-weight:bold;text-align:center;margin:8px 0;}
-  /* Relatório — impressora térmica 80mm */
-  @page{size:80mm auto;margin:3mm 2mm;}
-  #printRelatorio{display:block!important;font-family:'Courier New',monospace;font-size:14px;width:72mm;margin:0 auto;padding:0;color:#000!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-  #printRelatorio *{color:#000!important;font-weight:700;}
-  #printRelatorio h1{font-size:18px;font-weight:900;text-align:center;margin-bottom:2px;border-bottom:2px solid #000;padding-bottom:4px;letter-spacing:2px;}
-  #printRelatorio .rel-sub{text-align:center;font-size:12px;margin-bottom:6px;font-weight:900;}
-  #printRelatorio .rel-divider{border:none;border-top:2px solid #000;margin:5px 0;}
-  #printRelatorio .rel-stats{display:flex;justify-content:space-between;margin:6px 0;gap:3px;}
-  #printRelatorio .rel-stat-box{text-align:center;flex:1;border:2px solid #000;padding:4px 2px;}
-  #printRelatorio .rel-stat-val{font-size:16px;font-weight:900;display:block;}
-  #printRelatorio .rel-stat-lbl{font-size:8px;font-weight:900;text-transform:uppercase;display:block;margin-top:1px;}
-  #printRelatorio .rel-section{font-size:12px;font-weight:900;text-transform:uppercase;margin:6px 0 3px;border-bottom:2px solid #000;padding-bottom:2px;}
-  #printRelatorio .rel-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed #000;font-size:13px;font-weight:900;}
-  #printRelatorio .rel-footer{margin-top:8px;font-size:10px;text-align:center;border-top:2px solid #000;padding-top:4px;font-weight:900;}
-  #printRelatorio .rel-resultado{font-size:14px;font-weight:900;padding:5px 0;border-bottom:1px dashed #000;display:flex;justify-content:space-between;}
-  #printRelatorio .rel-lucro{font-size:16px;font-weight:900;padding:5px 0;border-top:3px solid #000;margin-top:3px;display:flex;justify-content:space-between;}
+  /* Relatório — mesmo formato da segunda foto */
+  @page{size:A4;margin:8mm;}
+  #printRelatorio{display:block!important;font-family:'Courier New',monospace;font-size:15px;width:100%;max-width:720px;margin:0 auto;padding:10px 20px;color:#000!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  #printRelatorio *{color:#000!important;}
+  #printRelatorio h1{font-size:28px;font-weight:900;text-align:center;margin-bottom:2px;border-bottom:3px solid #000;padding-bottom:6px;letter-spacing:3px;}
+  #printRelatorio .rel-sub{text-align:center;font-size:14px;margin-bottom:10px;font-weight:900;}
+  #printRelatorio .rel-divider{border:none;border-top:2px solid #000;margin:8px 0;}
+  #printRelatorio .rel-stats{display:flex;justify-content:space-around;margin:10px 0;gap:8px;}
+  #printRelatorio .rel-stat-box{text-align:center;flex:1;border:2px solid #000;padding:8px 4px;}
+  #printRelatorio .rel-stat-val{font-size:22px;font-weight:900;display:block;}
+  #printRelatorio .rel-stat-lbl{font-size:10px;font-weight:900;text-transform:uppercase;display:block;margin-top:2px;}
+  #printRelatorio .rel-section{font-size:13px;font-weight:900;letter-spacing:1px;text-transform:uppercase;margin:10px 0 4px;border-bottom:2px solid #000;padding-bottom:3px;}
+  #printRelatorio .rel-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #000;font-size:15px;font-weight:900;}
+  #printRelatorio .rel-footer{margin-top:12px;font-size:11px;text-align:center;border-top:2px solid #000;padding-top:5px;font-weight:900;}
+  #printRelatorio .rel-resultado{font-size:16px;font-weight:900;padding:6px 0;border-bottom:1px dashed #000;display:flex;justify-content:space-between;}
+  #printRelatorio .rel-lucro{font-size:20px;font-weight:900;padding:6px 0;border-top:3px solid #000;margin-top:4px;display:flex;justify-content:space-between;}
 }
 
 /* HAMBURGER */
