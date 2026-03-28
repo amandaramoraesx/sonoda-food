@@ -1437,8 +1437,21 @@ function renderBarChart() {
 }
 
 function renderDoughnutChart() {
-  const el = document.getElementById('chartDoughnut');
-  if (!el) return;
+  // Garante que o canvas existe — recria se foi destruído
+  const container = document.querySelector('#chartDoughnut')?.parentElement || document.querySelector('.chart-container');
+  let el = document.getElementById('chartDoughnut');
+  if (!el) {
+    // Busca o container da seção Top Pratos e recria o canvas
+    const cards = document.querySelectorAll('.card');
+    let topCard = null;
+    cards.forEach(c => { if (c.textContent.includes('Top 5')) topCard = c; });
+    if (!topCard) return;
+    const chartContainer = topCard.querySelector('.chart-container');
+    if (!chartContainer) return;
+    chartContainer.innerHTML = '<canvas id="chartDoughnut"></canvas>';
+    el = document.getElementById('chartDoughnut');
+    if (!el) return;
+  }
   const counts = {};
   Object.values(allPedidos).forEach(p => {
     (p.items||[]).forEach(item => {
@@ -1448,8 +1461,8 @@ function renderDoughnutChart() {
   });
   const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
   const ctx = el.getContext('2d');
-  if (chartDoughnut) chartDoughnut.destroy();
-  if (!sorted.length) { ctx.canvas.parentElement.innerHTML = '<div class="empty-state"><p>Sem dados</p></div>'; return; }
+  if (chartDoughnut) { try { chartDoughnut.destroy(); } catch(e){} chartDoughnut = null; }
+  if (!sorted.length) return;
   chartDoughnut = new Chart(ctx, {
     type:'doughnut',
     data:{ labels:sorted.map(x=>x[0]), datasets:[{ data:sorted.map(x=>x[1]), backgroundColor:['#c0392b','#e74c3c','#e67e22','#f39c12','#2980b9'] }] },
