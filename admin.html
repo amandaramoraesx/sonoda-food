@@ -3098,7 +3098,7 @@ document.getElementById('despData').value = today();
 
 const PRATOS_LIST = [
   { id:'combo1',      nome:'Combo Karaage + Yakimeshi', preco:39,  cat:'Combo',     especial:false },
-  { id:'yakimeshi',   nome:'Yakimeshi',                 preco:25,  cat:'Pratos',    especial:false },
+  { id:'yakimeshi',   nome:'Yakimeshi',                 preco:25,  cat:'Especiais', especial:false },
   { id:'yakissoba',   nome:'Yakissoba',                 preco:30,  cat:'Pratos',    especial:false },
   { id:'okonomiyaki', nome:'Okonomiyaki',               preco:25,  cat:'Pratos',    especial:false },
   { id:'temaki',      nome:'Temaki',                    preco:26,  cat:'Sushi',     especial:false },
@@ -3109,6 +3109,11 @@ const PRATOS_LIST = [
   { id:'gyudon',      nome:'Gyudon',                    preco:0,   cat:'Especiais', especial:true  },
   { id:'katsu',       nome:'Karê Tonkatsu',             preco:0,   cat:'Especiais', especial:true  },
   { id:'bifum',       nome:'Bifum',                     preco:0,   cat:'Especiais', especial:true  },
+  // ── SEMANA SANTA ──
+  { id:'onigiri',        nome:'Onigiri',           preco:11, cat:'Semana Santa', especial:false },
+  { id:'harumaki-queijo',nome:'Harumaki',           preco:17, cat:'Semana Santa', especial:false },
+  { id:'tempura-ss',     nome:'Tempurá',            preco:24, cat:'Semana Santa', especial:false },
+  { id:'bifum-camarao',  nome:'Bifum de Camarão',   preco:27, cat:'Semana Santa', especial:false },
 ];
 
 function renderCardapio() {
