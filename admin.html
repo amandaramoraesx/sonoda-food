@@ -801,9 +801,16 @@ tr:hover td{background:#fafafa;}
         Total: <strong id="mnTotal" style="color:var(--red);font-size:1.1rem;">R$0,00</strong>
       </div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer" id="mnFooterNormal">
       <button class="btn btn-gray" onclick="closeModal('modalNewOrder')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveManualOrder()">Salvar Pedido</button>
+    </div>
+    <div class="modal-footer" id="mnFooterSuccess" style="display:none;flex-direction:column;gap:10px;">
+      <div style="text-align:center;color:#16a34a;font-weight:700;font-size:.95rem;">✅ Pedido salvo com sucesso!</div>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+        <button class="btn" style="background:#25D366;color:white;font-weight:700;" id="mnBtnWhatsApp">📱 Enviar resumo no WhatsApp</button>
+        <button class="btn btn-gray" onclick="closeModal('modalNewOrder')">Fechar</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2848,6 +2855,11 @@ window.openNewOrderModal = function() {
   document.getElementById('deliveryFields').style.display='block';
   document.getElementById('mnClienteDropdown').style.display='none';
   document.getElementById('mnItemDropdown').style.display='none';
+  // Reset footer ao abrir modal
+  const fnormal = document.getElementById('mnFooterNormal');
+  const fsuccess = document.getElementById('mnFooterSuccess');
+  if (fnormal) fnormal.style.display = '';
+  if (fsuccess) fsuccess.style.display = 'none';
   renderManualItems();
   // Botões rápidos do cardápio
   const catEl = document.getElementById('mnCatalogBtns');
@@ -3003,7 +3015,43 @@ window.saveManualOrder = async function() {
   } else {
     showToast('Pedido criado!', 'success');
   }
-  closeModal('modalNewOrder');
+
+  // Montar mensagem de resumo para WhatsApp
+  const linhasItens = order.items.map(i => `• ${i.qty}x ${i.name}${i.sabor?' ('+i.sabor+')':''} — R$ ${(i.price*i.qty).toFixed(2).replace('.',',')}`).join('\n');
+  const enderecoLinha = order.tipo === 'entrega' && order.endereco
+    ? `\n📍 *Endereço:* ${order.endereco}${order.numero?' '+order.numero:''} ${order.bairro?'- '+order.bairro:''}`
+    : '';
+  const taxaLinha = order.taxa > 0 ? `\n🛵 Taxa de entrega: R$ ${order.taxa.toFixed(2).replace('.',',')}` : '';
+  const obsLinha = order.obs ? `\n📝 Obs: ${order.obs}` : '';
+  const tipoLabel = order.tipo === 'entrega' ? '🛵 Entrega' : '🏪 Retirada';
+  const resumoMsg =
+`🍱 *Sonoda Food — Pedido #${order.num}*
+━━━━━━━━━━━━━━━━
+📦 *Itens:*
+${linhasItens}
+━━━━━━━━━━━━━━━━
+💰 Subtotal: R$ ${order.subtotal.toFixed(2).replace('.',',')}${taxaLinha}
+💳 *Total: R$ ${order.total.toFixed(2).replace('.',',')}*
+💳 Pagamento: ${order.pagto}
+━━━━━━━━━━━━━━━━
+${tipoLabel}${enderecoLinha}${obsLinha}
+━━━━━━━━━━━━━━━━
+Obrigado, ${order.nome}! 😊`;
+
+  // Mostrar footer de sucesso com botão WhatsApp
+  const footerNormal = document.getElementById('mnFooterNormal');
+  const footerSuccess = document.getElementById('mnFooterSuccess');
+  if (footerNormal) footerNormal.style.display = 'none';
+  if (footerSuccess) footerSuccess.style.display = 'flex';
+  const btnWpp = document.getElementById('mnBtnWhatsApp');
+  if (btnWpp) {
+    if (order.telefone) {
+      btnWpp.style.display = '';
+      btnWpp.onclick = function() { sendWhatsApp(order.telefone, resumoMsg); };
+    } else {
+      btnWpp.style.display = 'none';
+    }
+  }
 };
 
 // ── EDIT ORDER ─────────────────────────────────────────────────
