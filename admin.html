@@ -1060,7 +1060,7 @@ let knownPedidoIds = new Set();
 let notifications = [];
 let currentEntregadorKey = null;
 let notifiedProntoIds = new Set();
-let cardapioData = { lojaFechada: false, esgotados: {}, ofertas: {}, pratos: {}, bairros: [], tempoEntrega: '', tempoRetirada: '', pedidoMinimo: 30, destaqueDia: '', zapiInstance: '', zapiToken: '', zapiClientToken: '' };
+let cardapioData = { lojaFechada: false, esgotados: {}, ofertas: {}, pratos: {}, saboresEsgotados: {}, bairros: [], tempoEntrega: '', tempoRetirada: '', pedidoMinimo: 30, destaqueDia: '', zapiInstance: '', zapiToken: '', zapiClientToken: '' };
 let entregadorMonthModal = null;
 
 const USERS = {
@@ -1212,6 +1212,10 @@ function startListeners() {
   });
   onValue(ref(db, 'ofertas'), snap => {
     cardapioData.ofertas = snap.val() || {};
+    if (document.getElementById('tab-cardapio')?.classList.contains('active')) renderPratosAdmin();
+  });
+  onValue(ref(db, 'sabores_esgotados'), snap => {
+    cardapioData.saboresEsgotados = snap.val() || {};
     if (document.getElementById('tab-cardapio')?.classList.contains('active')) renderPratosAdmin();
   });
   onValue(ref(db, 'pratos'), snap => {
@@ -3249,23 +3253,30 @@ document.getElementById('despData').value = today();
 // ── CARDÁPIO ADMIN ────────────────────────────────────────────
 
 const PRATOS_LIST = [
-  { id:'combo1',      nome:'Combo Karaage + Yakimeshi', preco:39,  cat:'Combo',     especial:false },
-  { id:'yakimeshi',   nome:'Yakimeshi',                 preco:25,  cat:'Especiais', especial:false },
-  { id:'yakissoba',   nome:'Yakissoba',                 preco:30,  cat:'Pratos',    especial:false },
-  { id:'okonomiyaki', nome:'Okonomiyaki',               preco:25,  cat:'Pratos',    especial:false },
-  { id:'temaki',      nome:'Temaki',                    preco:26,  cat:'Sushi',     especial:false },
-  { id:'uramaki',     nome:'Uramaki',                   preco:26,  cat:'Sushi',     especial:false },
-  { id:'hotroll',     nome:'Hot Roll',                  preco:32,  cat:'Sushi',     especial:false },
-  { id:'karaage',     nome:'Porção Karaage',            preco:29,  cat:'Petiscos',  especial:false },
-  { id:'gyoza',       nome:'Gyoza',                     preco:22,  cat:'Petiscos',  especial:false },
-  { id:'gyudon',      nome:'Gyudon',                    preco:0,   cat:'Especiais', especial:true  },
-  { id:'katsu',       nome:'Karê Tonkatsu',             preco:0,   cat:'Especiais', especial:true  },
-  { id:'bifum',       nome:'Bifum',                     preco:0,   cat:'Especiais', especial:true  },
-  // ── SEMANA SANTA ──
-  { id:'onigiri',        nome:'Onigiri',           preco:11, cat:'Semana Santa', especial:false },
-  { id:'harumaki-queijo',nome:'Harumaki',           preco:17, cat:'Semana Santa', especial:false },
-  { id:'tempura-ss',     nome:'Tempurá',            preco:24, cat:'Semana Santa', especial:false },
-  { id:'bifum-camarao',  nome:'Bifum de Camarão',   preco:27, cat:'Semana Santa', especial:false },
+  { id:'combo1',           nome:'Combo Karaage + Yakimeshi', preco:39,  cat:'Combo',        especial:false },
+  { id:'yakimeshi',        nome:'Yakimeshi',                 preco:25,  cat:'Especiais',    especial:false },
+  { id:'yakissoba',        nome:'Yakissoba',                 preco:30,  cat:'Pratos',       especial:false },
+  { id:'okonomiyaki',      nome:'Okonomiyaki',               preco:25,  cat:'Pratos',       especial:false },
+  { id:'temaki',           nome:'Temaki',                    preco:26,  cat:'Sushi',        especial:false },
+  { id:'uramaki',          nome:'Uramaki',                   preco:26,  cat:'Sushi',        especial:false },
+  { id:'hotroll',          nome:'Hot Roll',                  preco:32,  cat:'Sushi',        especial:false },
+  { id:'karaage',          nome:'Porção Karaage',            preco:29,  cat:'Petiscos',     especial:false },
+  { id:'gyoza',            nome:'Gyoza',                     preco:22,  cat:'Petiscos',     especial:false },
+  { id:'gyudon',           nome:'Gyudon',                    preco:0,   cat:'Especiais',    especial:true  },
+  { id:'katsu',            nome:'Karê Tonkatsu',             preco:0,   cat:'Especiais',    especial:true  },
+  { id:'bifum',            nome:'Bifum',                     preco:0,   cat:'Especiais',    especial:true  },
+  // ── IDs corrigidos para bater com o cardápio (index.html) ──
+  { id:'oniguiri-ss',      nome:'Onigiri',                   preco:11,  cat:'Semana Santa', especial:false },
+  { id:'harumaki-ss',      nome:'Harumaki',                  preco:17,  cat:'Semana Santa', especial:false },
+  { id:'tempura-ss',       nome:'Tempurá',                   preco:24,  cat:'Semana Santa', especial:false },
+  { id:'bifum-camarao-ss', nome:'Bifum de Camarão',          preco:27,  cat:'Semana Santa', especial:false },
+  // ── Bebidas ──
+  { id:'heineken-330',     nome:'Heineken 330ml',            preco:9,   cat:'Bebidas',      especial:false },
+  { id:'coca-lata',        nome:'Coca-Cola Lata',            preco:7,   cat:'Bebidas',      especial:false },
+  { id:'coca-2l',          nome:'Coca-Cola 2L',              preco:12,  cat:'Bebidas',      especial:false },
+  { id:'coca-zero-15',     nome:'Coca-Cola Zero 1,5L',       preco:12,  cat:'Bebidas',      especial:false },
+  { id:'guarana-15',       nome:'Guaraná 1,5L',              preco:10,  cat:'Bebidas',      especial:false },
+  { id:'kuat-2l',          nome:'Kuat 2L',                   preco:10,  cat:'Bebidas',      especial:false },
 ];
 
 function renderCardapio() {
@@ -3416,9 +3427,38 @@ function renderPratoRow(p) {
         background:${oferta ? '#fef3c7' : '#f3f4f6'};color:${oferta ? '#92400e' : '#6c757d'};">
         ${oferta ? '⭐ Oferta Ativa' : '☆ Sem Oferta'}
       </button>
+      ${p.id === 'oniguiri-ss' ? `
+      <button onclick="toggleSaborEsgotadoAdmin('atum-oniguiri-ss', this)"
+        style="border:none;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:.82rem;font-weight:700;
+        background:${cardapioData.saboresEsgotados['atum-oniguiri-ss'] ? '#fee2e2' : '#dcfce7'};
+        color:${cardapioData.saboresEsgotados['atum-oniguiri-ss'] ? '#c0392b' : '#166534'};">
+        ${cardapioData.saboresEsgotados['atum-oniguiri-ss'] ? '🐟 Atum: Esgotado' : '🐟 Atum: Disponível'}
+      </button>
+      <button onclick="toggleSaborEsgotadoAdmin('salmao-oniguiri-ss', this)"
+        style="border:none;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:.82rem;font-weight:700;
+        background:${cardapioData.saboresEsgotados['salmao-oniguiri-ss'] ? '#fee2e2' : '#dcfce7'};
+        color:${cardapioData.saboresEsgotados['salmao-oniguiri-ss'] ? '#c0392b' : '#166534'};">
+        ${cardapioData.saboresEsgotados['salmao-oniguiri-ss'] ? '🍣 Salmão: Esgotado' : '🍣 Salmão: Disponível'}
+      </button>` : ''}
     </div>
   </div>`;
 }
+
+window.toggleSaborEsgotadoAdmin = function(sabKey, btnEl) {
+  const atual = !!cardapioData.saboresEsgotados[sabKey];
+  const novo = !atual;
+  set(ref(db, 'sabores_esgotados/' + sabKey), novo)
+    .then(() => {
+      const saborNome = sabKey.includes('atum') ? '🐟 Atum' : '🍣 Salmão';
+      if (btnEl) {
+        btnEl.textContent = novo ? saborNome + ': Esgotado' : saborNome + ': Disponível';
+        btnEl.style.background = novo ? '#fee2e2' : '#dcfce7';
+        btnEl.style.color = novo ? '#c0392b' : '#166534';
+      }
+      showToast(novo ? '🔴 ' + saborNome + ' esgotado!' : '🟢 ' + saborNome + ' disponível!');
+    })
+    .catch(() => showToast('Erro ao atualizar sabor', 'error'));
+};
 
 window.salvarPratoDados = function(id) {
   const nomeEl = document.getElementById('nome-' + id);
