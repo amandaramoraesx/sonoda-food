@@ -3105,6 +3105,7 @@ window.saveManualOrder = async function() {
     items: manualItems, subtotal, taxa, total, status:'novo'
   };
   const pedidoRef = await push(ref(db,'pedidos'), order);
+  autoSaveCliente(order);
   if (pagto === 'Fiado') {
     const dataPrevista = document.getElementById('mnFiadoData').value;
     await push(ref(db,'fiados'), {
