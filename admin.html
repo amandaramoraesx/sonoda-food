@@ -766,7 +766,7 @@ tr:hover td{background:#fafafa;}
     <div class="modal-body">
       <div class="form-group" style="position:relative;margin-bottom:8px;">
         <label>Cliente</label>
-        <input type="text" id="mnNome" class="form-control" placeholder="Buscar ou digitar nome..." oninput="onClienteSearch(this.value)" autocomplete="off">
+        <input type="text" id="mnNome" class="form-control" placeholder="Buscar cliente ou digitar nome novo..." oninput="onClienteSearch(this.value)" onblur="setTimeout(function(){ var dd=document.getElementById('mnClienteDropdown'); if(dd) dd.style.display='none'; }, 150)" autocomplete="off">
         <div id="mnClienteDropdown" style="display:none;position:absolute;z-index:999;background:#fff;border:1px solid #e5e7eb;border-radius:8px;width:100%;max-height:190px;overflow-y:auto;box-shadow:0 4px 14px rgba(0,0,0,.13);top:calc(100% + 2px);left:0;"></div>
       </div>
       <div class="form-row">
@@ -795,7 +795,7 @@ tr:hover td{background:#fafafa;}
           <div class="form-group"><label>Número</label><input type="text" id="mnNumero" class="form-control"></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label>Bairro</label><input type="text" id="mnBairro" class="form-control"></div>
+          <div class="form-group"><label>Bairro</label><input type="text" id="mnBairro" class="form-control" list="mnBairrosDatalist" oninput="onMnBairroChange()"><datalist id="mnBairrosDatalist"></datalist></div>
           <div class="form-group"><label>Taxa (R$)</label><input type="number" id="mnTaxa" class="form-control" value="0" step="0.01" oninput="renderManualItems()"></div>
         </div>
       </div>
@@ -1253,7 +1253,11 @@ function startListeners() {
   });
   onValue(ref(db, 'bairros'), snap => {
     const d = snap.val();
-    if (Array.isArray(d)) { cardapioData.bairros = d; if (document.getElementById('tab-cardapio')?.classList.contains('active')) renderBairrosAdmin(); }
+    if (Array.isArray(d)) {
+      cardapioData.bairros = d;
+      if (document.getElementById('tab-cardapio')?.classList.contains('active')) renderBairrosAdmin();
+      renderMnBairrosDatalist();
+    }
   });
 }
 
@@ -2957,6 +2961,21 @@ window.printOrder = async function(id) {
 };
 
 // ── MANUAL ORDER ───────────────────────────────────────────────
+function renderMnBairrosDatalist() {
+  const dl = document.getElementById('mnBairrosDatalist');
+  if (!dl) return;
+  dl.innerHTML = (cardapioData.bairros || []).map(b => `<option value="${b.nome}">`).join('');
+}
+
+window.onMnBairroChange = function() {
+  const nome = document.getElementById('mnBairro').value.trim().toLowerCase();
+  const bairro = (cardapioData.bairros || []).find(b => (b.nome || '').trim().toLowerCase() === nome);
+  if (bairro) {
+    document.getElementById('mnTaxa').value = bairro.taxa || 0;
+    renderManualItems();
+  }
+};
+
 window.openNewOrderModal = function() {
   manualItems = [];
   ['mnNome','mnTel','mnEndereco','mnNumero','mnBairro','mnObs','mnItemSearch','mnItemPrice'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
@@ -2994,12 +3013,17 @@ window.onClienteSearch = function(val) {
   const matches = Object.entries(allClientes).filter(([,c]) =>
     (c.nome||'').toLowerCase().includes(q) || (c.telefone||'').includes(q)
   ).slice(0, 6);
-  if (!matches.length) { dd.style.display='none'; return; }
-  dd.innerHTML = matches.map(([key,c]) =>
+  const matchesHtml = matches.map(([key,c]) =>
     `<div onclick="selectCliente('${key}')" style="padding:9px 12px;cursor:pointer;border-bottom:1px solid #f3f4f6;font-size:.85rem;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">` +
     `<strong>${c.nome}</strong> <span style="color:var(--gray);font-size:.78rem;">${c.telefone||''} · ${c.bairro||''}</span></div>`
   ).join('');
+  const novoHtml = `<div onmousedown="fecharClienteDropdown()" style="padding:9px 12px;cursor:pointer;font-size:.83rem;color:var(--red);font-weight:600;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">+ Cliente novo (continuar digitando)</div>`;
+  dd.innerHTML = matchesHtml + novoHtml;
   dd.style.display = 'block';
+};
+
+window.fecharClienteDropdown = function() {
+  document.getElementById('mnClienteDropdown').style.display = 'none';
 };
 
 window.selectCliente = function(key) {
