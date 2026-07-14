@@ -1265,6 +1265,7 @@ body.editing .destaque-dia-edit-btn { display:inline-block; }
     <button class="ftag" onclick="doFilter('sushi',this)">🍣 Sushi</button>
     <button class="ftag" onclick="doFilter('petisco',this)">🍗 Petiscos</button>
     <button class="ftag" onclick="doFilter('bebidas',this)">🥤 Bebidas</button>
+    <button class="ftag" onclick="doFilter('doces',this)">🍡 Doces</button>
   </div>
 </div>
 
@@ -1326,9 +1327,23 @@ body.editing .destaque-dia-edit-btn { display:inline-block; }
   <div class="card-body">
     <div class="card-name editable" contenteditable="false">Combo Karaage + Yakimeshi</div>
     <div class="card-desc editable" contenteditable="false">Aprox. 200g de Karaage + 250g de Yakimeshi.</div>
-    <divclass="sabores" id="sabores-combo1"><button class="sab" onclick="selecionarSabor('combo1', this)">Tradicional</button><button class="sab" onclick="selecionarSabor('combo1', this)">Agridoce</button><button class="sab" onclick="selecionarSabor('combo1', this)">Maionese</button></div>
+    <div class="sabores" id="sabores-combo1"><button class="sab" onclick="selecionarSabor('combo1', this)">Tradicional</button><button class="sab" onclick="selecionarSabor('combo1', this)">Agridoce</button><button class="sab" onclick="selecionarSabor('combo1', this)">Maionese</button></div>
     <div class="card-foot"><span class="price"><span class="cur">R$</span>39</span><button class="add-btn" id="ab-combo1" onclick="if(verificarSabor('combo1'))initQtyPicker('combo1','Combo Karaage + Yakimeshi',39)">+</button></div>
     <div class="badge-row edit-only" id="brow-combo1"><button class="esgotado-toggle-btn" onclick="toggleEsgotado('card-combo1')">Marcar Esgotado</button><span class="brow-label">Destaque:</span><button class="brow-btn brow-active" onclick="setBadge('combo1','hot')">🔥 Mais Pedido</button><button class="brow-btn" onclick="setBadge('combo1','new')">✨ Novidade</button><button class="brow-btn oferta-btn" id="oferta-btn-combo1" onclick="toggleOferta('combo1')">Oferta</button><button class="brow-btn brow-none" onclick="setBadge('combo1','')">✕ Nenhum</button></div>
+  </div>
+</div><div class="card" id="card-combinado-14pc" data-id="combinado-14pc" data-cat="combo" draggable="false">
+  <div class="img-wrap">
+    <div class="slider-wrap" id="sw-combinado-14pc" style="display:flex;align-items:center;justify-content:center;color:#bbb;font-size:.75rem">Sem foto
+      <button class="photo-upload-btn" onclick="triggerUpload('combinado-14pc')">📷 Adicionar foto</button>
+    </div>
+    <div class="img-badges" id="ibadge-combinado-14pc"><span class="ibadge card-badge" id="badge-combinado-14pc" style="display:none"></span><span class="ibadge card-badge badge-oferta" id="oferta-badge-combinado-14pc" style="display:none">OFERTA</span></div>
+    <span class="card-drag-handle" title="Arrastar para reordenar">⠠</span><button class="del-btn" onclick="deleteCard(this)" title="Remover item">✕</button>
+  </div>
+  <div class="card-body">
+    <div class="card-name editable" contenteditable="false">Combinado 14 Peças</div>
+    <div class="card-desc editable" contenteditable="false">4 Joy Eby, 4 Uramaki, 4 Hossomaki, 2 Niguiri Sushi.</div>
+    <div class="card-foot"><span class="price"><span class="cur">R$</span><span class="price-num">55</span></span><button class="add-btn" id="ab-combinado-14pc" onclick="initQtyPicker('combinado-14pc','Combinado 14 Peças',55)">+</button></div>
+    <div class="badge-row edit-only" id="brow-combinado-14pc"><button class="esgotado-toggle-btn" onclick="toggleEsgotado('card-combinado-14pc')">Marcar Esgotado</button><span class="brow-label">Destaque:</span><button class="brow-btn" onclick="setBadge('combinado-14pc','hot')">🔥 Mais Pedido</button><button class="brow-btn" onclick="setBadge('combinado-14pc','new')">✨ Novidade</button><button class="brow-btn oferta-btn" id="oferta-btn-combinado-14pc" onclick="toggleOferta('combinado-14pc')">Oferta</button><button class="brow-btn brow-none" onclick="setBadge('combinado-14pc','')">✕ Nenhum</button></div>
   </div>
 </div></div>
 </section>
@@ -1817,6 +1832,148 @@ body.editing .destaque-dia-edit-btn { display:inline-block; }
   </div>
 </div>
   </div>
+</section>
+<section class="cat-sec" id="sec-doces" draggable="false">
+  <div class="sec-header" draggable="false">
+    <span class="sec-drag-handle" title="Arrastar para reordenar">⠿</span>
+    <h2 class="sec-title editable" contenteditable="false">🍡 Doces</h2>
+    <button class="sec-add-btn" onclick="openAddModal('doces')">+ Item</button>
+  </div>
+  <div class="grid" id="grid-doces"><div class="card" id="card-choco-pie" data-id="choco-pie" data-cat="doces" draggable="false">
+  <div class="img-wrap">
+    <div class="slider-wrap" id="sw-choco-pie" style="display:flex;align-items:center;justify-content:center;color:#bbb;font-size:.75rem">Sem foto
+      <button class="photo-upload-btn" onclick="triggerUpload('choco-pie')">📷 Adicionar foto</button>
+    </div>
+    <div class="img-badges" id="ibadge-choco-pie"><span class="ibadge card-badge" id="badge-choco-pie" style="display:none"></span><span class="ibadge card-badge badge-oferta" id="oferta-badge-choco-pie" style="display:none">OFERTA</span></div>
+    <span class="card-drag-handle" title="Arrastar para reordenar">⠠</span><button class="del-btn" onclick="deleteCard(this)" title="Remover item">✕</button>
+  </div>
+  <div class="card-body">
+    <div class="card-name editable" contenteditable="false">Choco Pie</div>
+    <div class="card-desc editable" contenteditable="false">Biscoitos macios estilo alfajor, recheados com marshmallow e cobertos com chocolate.</div>
+    <div class="card-foot"><span class="price"><span class="cur">R$</span><span class="price-num">25</span></span><button class="add-btn" id="ab-choco-pie" onclick="initQtyPicker('choco-pie','Choco Pie',25)">+</button></div>
+    <div class="badge-row edit-only" id="brow-choco-pie"><button class="esgotado-toggle-btn" onclick="toggleEsgotado('card-choco-pie')">Marcar Esgotado</button><span class="brow-label">Destaque:</span><button class="brow-btn" onclick="setBadge('choco-pie','hot')">🔥 Mais Pedido</button><button class="brow-btn" onclick="setBadge('choco-pie','new')">✨ Novidade</button><button class="brow-btn oferta-btn" id="oferta-btn-choco-pie" onclick="toggleOferta('choco-pie')">Oferta</button><button class="brow-btn brow-none" onclick="setBadge('choco-pie','')">✕ Nenhum</button></div>
+  </div>
+</div>
+<div class="card" id="card-crispy-crepes-morango" data-id="crispy-crepes-morango" data-cat="doces" draggable="false">
+  <div class="img-wrap">
+    <div class="slider-wrap" id="sw-crispy-crepes-morango" style="display:flex;align-items:center;justify-content:center;color:#bbb;font-size:.75rem">Sem foto
+      <button class="photo-upload-btn" onclick="triggerUpload('crispy-crepes-morango')">📷 Adicionar foto</button>
+    </div>
+    <div class="img-badges" id="ibadge-crispy-crepes-morango"><span class="ibadge card-badge" id="badge-crispy-crepes-morango" style="display:none"></span><span class="ibadge card-badge badge-oferta" id="oferta-badge-crispy-crepes-morango" style="display:none">OFERTA</span></div>
+    <span class="card-drag-handle" title="Arrastar para reordenar">⠠</span><button class="del-btn" onclick="deleteCard(this)" title="Remover item">✕</button>
+  </div>
+  <div class="card-body">
+    <div class="card-name editable" contenteditable="false">Crispy Crepes (Morango)</div>
+    <div class="card-desc editable" contenteditable="false">Crepes finos e crocantes, sabor leite com morango.</div>
+    <div class="card-foot"><span class="price"><span class="cur">R$</span><span class="price-num">16</span></span><button class="add-btn" id="ab-crispy-crepes-morango" onclick="initQtyPicker('crispy-crepes-morango','Crispy Crepes (Morango)',16)">+</button></div>
+    <div class="badge-row edit-only" id="brow-crispy-crepes-morango"><button class="esgotado-toggle-btn" onclick="toggleEsgotado('card-crispy-crepes-morango')">Marcar Esgotado</button><span class="brow-label">Destaque:</span><button class="brow-btn" onclick="setBadge('crispy-crepes-morango','hot')">🔥 Mais Pedido</button><button class="brow-btn" onclick="setBadge('crispy-crepes-morango','new')">✨ Novidade</button><button class="brow-btn oferta-btn" id="oferta-btn-crispy-crepes-morango" onclick="toggleOferta('crispy-crepes-morango')">Oferta</button><button class="brow-btn brow-none" onclick="setBadge('crispy-crepes-morango','')">✕ Nenhum</button></div>
+  </div>
+</div>
+<div class="card" id="card-crispy-crepes-chocolate" data-id="crispy-crepes-chocolate" data-cat="doces" draggable="false">
+  <div class="img-wrap">
+    <div class="slider-wrap" id="sw-crispy-crepes-chocolate" style="display:flex;align-items:center;justify-content:center;color:#bbb;font-size:.75rem">Sem foto
+      <button class="photo-upload-btn" onclick="triggerUpload('crispy-crepes-chocolate')">📷 Adicionar foto</button>
+    </div>
+    <div class="img-badges" id="ibadge-crispy-crepes-chocolate"><span class="ibadge card-badge" id="badge-crispy-crepes-chocolate" style="display:none"></span><span class="ibadge card-badge badge-oferta" id="oferta-badge-crispy-crepes-chocolate" style="display:none">OFERTA</span></div>
+    <span class="card-drag-handle" title="Arrastar para reordenar">⠠</span><button class="del-btn" onclick="deleteCard(this)" title="Remover item">✕</button>
+  </div>
+  <div class="card-body">
+    <div class="card-name editable" contenteditable="false">Crispy Crepes (Chocolate)</div>
+    <div class="card-desc editable" contenteditable="false">Crepes finos e crocantes, sabor chocolate.</div>
+    <div class="card-foot"><span class="price"><span class="cur">R$</span><span class="price-num">16</span></span><button class="add-btn" id="ab-crispy-crepes-chocolate" onclick="initQtyPicker('crispy-crepes-chocolate','Crispy Crepes (Chocolate)',16)">+</button></div>
+    <div class="badge-row edit-only" id="brow-crispy-crepes-chocolate"><button class="esgotado-toggle-btn" onclick="toggleEsgotado('card-crispy-crepes-chocolate')">Marcar Esgotado</button><span class="brow-label">Destaque:</span><button class="brow-btn" onclick="setBadge('crispy-crepes-chocolate','hot')">🔥 Mais Pedido</button><button class="brow-btn" onclick="setBadge('crispy-crepes-chocolate','new')">✨ Novidade</button><button class="brow-btn oferta-btn" id="oferta-btn-crispy-crepes-chocolate" onclick="toggleOferta('crispy-crepes-chocolate')">Oferta</button><button class="brow-btn brow-none" onclick="setBadge('crispy-crepes-chocolate','')">✕ Nenhum</button></div>
+  </div>
+</div>
+<div class="card" id="card-pejoy-baunilha" data-id="pejoy-baunilha" data-cat="doces" draggable="false">
+  <div class="img-wrap">
+    <div class="slider-wrap" id="sw-pejoy-baunilha" style="display:flex;align-items:center;justify-content:center;color:#bbb;font-size:.75rem">Sem foto
+      <button class="photo-upload-btn" onclick="triggerUpload('pejoy-baunilha')">📷 Adicionar foto</button>
+    </div>
+    <div class="img-badges" id="ibadge-pejoy-baunilha"><span class="ibadge card-badge" id="badge-pejoy-baunilha" style="display:none"></span><span class="ibadge card-badge badge-oferta" id="oferta-badge-pejoy-baunilha" style="display:none">OFERTA</span></div>
+    <span class="card-drag-handle" title="Arrastar para reordenar">⠠</span><button class="del-btn" onclick="deleteCard(this)" title="Remover item">✕</button>
+  </div>
+  <div class="card-body">
+    <div class="card-name editable" contenteditable="false">Pejoy (Baunilha Hokkaido)</div>
+    <div class="card-desc editable" contenteditable="false">Palitos de biscoito crocante recheados com creme de baunilha e leite de Hokkaido.</div>
+    <div class="card-foot"><span class="price"><span class="cur">R$</span><span class="price-num">18</span></span><button class="add-btn" id="ab-pejoy-baunilha" onclick="initQtyPicker('pejoy-baunilha','Pejoy (Baunilha Hokkaido)',18)">+</button></div>
+    <div class="badge-row edit-only" id="brow-pejoy-baunilha"><button class="esgotado-toggle-btn" onclick="toggleEsgotado('card-pejoy-baunilha')">Marcar Esgotado</button><span class="brow-label">Destaque:</span><button class="brow-btn" onclick="setBadge('pejoy-baunilha','hot')">🔥 Mais Pedido</button><button class="brow-btn" onclick="setBadge('pejoy-baunilha','new')">✨ Novidade</button><button class="brow-btn oferta-btn" id="oferta-btn-pejoy-baunilha" onclick="toggleOferta('pejoy-baunilha')">Oferta</button><button class="brow-btn brow-none" onclick="setBadge('pejoy-baunilha','')">✕ Nenhum</button></div>
+  </div>
+</div>
+<div class="card" id="card-pejoy-chocolate" data-id="pejoy-chocolate" data-cat="doces" draggable="false">
+  <div class="img-wrap">
+    <div class="slider-wrap" id="sw-pejoy-chocolate" style="display:flex;align-items:center;justify-content:center;color:#bbb;font-size:.75rem">Sem foto
+      <button class="photo-upload-btn" onclick="triggerUpload('pejoy-chocolate')">📷 Adicionar foto</button>
+    </div>
+    <div class="img-badges" id="ibadge-pejoy-chocolate"><span class="ibadge card-badge" id="badge-pejoy-chocolate" style="display:none"></span><span class="ibadge card-badge badge-oferta" id="oferta-badge-pejoy-chocolate" style="display:none">OFERTA</span></div>
+    <span class="card-drag-handle" title="Arrastar para reordenar">⠠</span><button class="del-btn" onclick="deleteCard(this)" title="Remover item">✕</button>
+  </div>
+  <div class="card-body">
+    <div class="card-name editable" contenteditable="false">Pejoy (Chocolate Belga)</div>
+    <div class="card-desc editable" contenteditable="false">Palitos de biscoito crocante recheados com creme intenso de chocolate belga.</div>
+    <div class="card-foot"><span class="price"><span class="cur">R$</span><span class="price-num">18</span></span><button class="add-btn" id="ab-pejoy-chocolate" onclick="initQtyPicker('pejoy-chocolate','Pejoy (Chocolate Belga)',18)">+</button></div>
+    <div class="badge-row edit-only" id="brow-pejoy-chocolate"><button class="esgotado-toggle-btn" onclick="toggleEsgotado('card-pejoy-chocolate')">Marcar Esgotado</button><span class="brow-label">Destaque:</span><button class="brow-btn" onclick="setBadge('pejoy-chocolate','hot')">🔥 Mais Pedido</button><button class="brow-btn" onclick="setBadge('pejoy-chocolate','new')">✨ Novidade</button><button class="brow-btn oferta-btn" id="oferta-btn-pejoy-chocolate" onclick="toggleOferta('pejoy-chocolate')">Oferta</button><button class="brow-btn brow-none" onclick="setBadge('pejoy-chocolate','')">✕ Nenhum</button></div>
+  </div>
+</div>
+<div class="card" id="card-astor-baunilha" data-id="astor-baunilha" data-cat="doces" draggable="false">
+  <div class="img-wrap">
+    <div class="slider-wrap" id="sw-astor-baunilha" style="display:flex;align-items:center;justify-content:center;color:#bbb;font-size:.75rem">Sem foto
+      <button class="photo-upload-btn" onclick="triggerUpload('astor-baunilha')">📷 Adicionar foto</button>
+    </div>
+    <div class="img-badges" id="ibadge-astor-baunilha"><span class="ibadge card-badge" id="badge-astor-baunilha" style="display:none"></span><span class="ibadge card-badge badge-oferta" id="oferta-badge-astor-baunilha" style="display:none">OFERTA</span></div>
+    <span class="card-drag-handle" title="Arrastar para reordenar">⠠</span><button class="del-btn" onclick="deleteCard(this)" title="Remover item">✕</button>
+  </div>
+  <div class="card-body">
+    <div class="card-name editable" contenteditable="false">Astor Vanilla Shake</div>
+    <div class="card-desc editable" contenteditable="false">Rolinhos de wafer crocante recheados com creme sabor milkshake de baunilha.</div>
+    <div class="card-foot"><span class="price"><span class="cur">R$</span><span class="price-num">14</span></span><button class="add-btn" id="ab-astor-baunilha" onclick="initQtyPicker('astor-baunilha','Astor Vanilla Shake',14)">+</button></div>
+    <div class="badge-row edit-only" id="brow-astor-baunilha"><button class="esgotado-toggle-btn" onclick="toggleEsgotado('card-astor-baunilha')">Marcar Esgotado</button><span class="brow-label">Destaque:</span><button class="brow-btn" onclick="setBadge('astor-baunilha','hot')">🔥 Mais Pedido</button><button class="brow-btn" onclick="setBadge('astor-baunilha','new')">✨ Novidade</button><button class="brow-btn oferta-btn" id="oferta-btn-astor-baunilha" onclick="toggleOferta('astor-baunilha')">Oferta</button><button class="brow-btn brow-none" onclick="setBadge('astor-baunilha','')">✕ Nenhum</button></div>
+  </div>
+</div>
+<div class="card" id="card-astor-chocolate" data-id="astor-chocolate" data-cat="doces" draggable="false">
+  <div class="img-wrap">
+    <div class="slider-wrap" id="sw-astor-chocolate" style="display:flex;align-items:center;justify-content:center;color:#bbb;font-size:.75rem">Sem foto
+      <button class="photo-upload-btn" onclick="triggerUpload('astor-chocolate')">📷 Adicionar foto</button>
+    </div>
+    <div class="img-badges" id="ibadge-astor-chocolate"><span class="ibadge card-badge" id="badge-astor-chocolate" style="display:none"></span><span class="ibadge card-badge badge-oferta" id="oferta-badge-astor-chocolate" style="display:none">OFERTA</span></div>
+    <span class="card-drag-handle" title="Arrastar para reordenar">⠠</span><button class="del-btn" onclick="deleteCard(this)" title="Remover item">✕</button>
+  </div>
+  <div class="card-body">
+    <div class="card-name editable" contenteditable="false">Astor Chocolate</div>
+    <div class="card-desc editable" contenteditable="false">Rolinhos de wafer crocante recheados com creme rico de chocolate.</div>
+    <div class="card-foot"><span class="price"><span class="cur">R$</span><span class="price-num">14</span></span><button class="add-btn" id="ab-astor-chocolate" onclick="initQtyPicker('astor-chocolate','Astor Chocolate',14)">+</button></div>
+    <div class="badge-row edit-only" id="brow-astor-chocolate"><button class="esgotado-toggle-btn" onclick="toggleEsgotado('card-astor-chocolate')">Marcar Esgotado</button><span class="brow-label">Destaque:</span><button class="brow-btn" onclick="setBadge('astor-chocolate','hot')">🔥 Mais Pedido</button><button class="brow-btn" onclick="setBadge('astor-chocolate','new')">✨ Novidade</button><button class="brow-btn oferta-btn" id="oferta-btn-astor-chocolate" onclick="toggleOferta('astor-chocolate')">Oferta</button><button class="brow-btn brow-none" onclick="setBadge('astor-chocolate','')">✕ Nenhum</button></div>
+  </div>
+</div>
+<div class="card" id="card-kancho" data-id="kancho" data-cat="doces" draggable="false">
+  <div class="img-wrap">
+    <div class="slider-wrap" id="sw-kancho" style="display:flex;align-items:center;justify-content:center;color:#bbb;font-size:.75rem">Sem foto
+      <button class="photo-upload-btn" onclick="triggerUpload('kancho')">📷 Adicionar foto</button>
+    </div>
+    <div class="img-badges" id="ibadge-kancho"><span class="ibadge card-badge" id="badge-kancho" style="display:none"></span><span class="ibadge card-badge badge-oferta" id="oferta-badge-kancho" style="display:none">OFERTA</span></div>
+    <span class="card-drag-handle" title="Arrastar para reordenar">⠠</span><button class="del-btn" onclick="deleteCard(this)" title="Remover item">✕</button>
+  </div>
+  <div class="card-body">
+    <div class="card-name editable" contenteditable="false">Kancho</div>
+    <div class="card-desc editable" contenteditable="false">Biscoitos crocantes recheados com chocolate ao leite.</div>
+    <div class="card-foot"><span class="price"><span class="cur">R$</span><span class="price-num">13</span></span><button class="add-btn" id="ab-kancho" onclick="initQtyPicker('kancho','Kancho',13)">+</button></div>
+    <div class="badge-row edit-only" id="brow-kancho"><button class="esgotado-toggle-btn" onclick="toggleEsgotado('card-kancho')">Marcar Esgotado</button><span class="brow-label">Destaque:</span><button class="brow-btn" onclick="setBadge('kancho','hot')">🔥 Mais Pedido</button><button class="brow-btn" onclick="setBadge('kancho','new')">✨ Novidade</button><button class="brow-btn oferta-btn" id="oferta-btn-kancho" onclick="toggleOferta('kancho')">Oferta</button><button class="brow-btn brow-none" onclick="setBadge('kancho','')">✕ Nenhum</button></div>
+  </div>
+</div>
+<div class="card" id="card-roll-n-roll" data-id="roll-n-roll" data-cat="doces" draggable="false">
+  <div class="img-wrap">
+    <div class="slider-wrap" id="sw-roll-n-roll" style="display:flex;align-items:center;justify-content:center;color:#bbb;font-size:.75rem">Sem foto
+      <button class="photo-upload-btn" onclick="triggerUpload('roll-n-roll')">📷 Adicionar foto</button>
+    </div>
+    <div class="img-badges" id="ibadge-roll-n-roll"><span class="ibadge card-badge" id="badge-roll-n-roll" style="display:none"></span><span class="ibadge card-badge badge-oferta" id="oferta-badge-roll-n-roll" style="display:none">OFERTA</span></div>
+    <span class="card-drag-handle" title="Arrastar para reordenar">⠠</span><button class="del-btn" onclick="deleteCard(this)" title="Remover item">✕</button>
+  </div>
+  <div class="card-body">
+    <div class="card-name editable" contenteditable="false">Roll N' Roll</div>
+    <div class="card-desc editable" contenteditable="false">Rolinhos de biscoito de cacau recheados com creme sabor cookies n cream.</div>
+    <div class="card-foot"><span class="price"><span class="cur">R$</span><span class="price-num">15</span></span><button class="add-btn" id="ab-roll-n-roll" onclick="initQtyPicker('roll-n-roll','Roll N\' Roll',15)">+</button></div>
+    <div class="badge-row edit-only" id="brow-roll-n-roll"><button class="esgotado-toggle-btn" onclick="toggleEsgotado('card-roll-n-roll')">Marcar Esgotado</button><span class="brow-label">Destaque:</span><button class="brow-btn" onclick="setBadge('roll-n-roll','hot')">🔥 Mais Pedido</button><button class="brow-btn" onclick="setBadge('roll-n-roll','new')">✨ Novidade</button><button class="brow-btn oferta-btn" id="oferta-btn-roll-n-roll" onclick="toggleOferta('roll-n-roll')">Oferta</button><button class="brow-btn brow-none" onclick="setBadge('roll-n-roll','')">✕ Nenhum</button></div>
+  </div>
+</div></div>
 </section>
 </div>
 

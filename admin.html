@@ -863,15 +863,19 @@ tr:hover td{background:#fafafa;}
       <input type="hidden" id="editOrderId">
       <div class="form-row">
         <div class="form-group"><label>Forma de Pagamento</label>
-          <select id="editPagto" class="form-control">
-            <option>Dinheiro</option><option>Pix</option><option>Cartão Débito</option><option>Cartão Crédito</option>
+          <select id="editPagto" class="form-control" onchange="onEditPagtoChange()">
+            <option>Dinheiro</option><option>Pix</option><option>Cartão Débito</option><option>Cartão Crédito</option><option>Fiado</option>
           </select>
         </div>
         <div class="form-group"><label>Tipo de Pedido</label>
-          <select id="editTipo" class="form-control">
+          <select id="editTipo" class="form-control" onchange="renderEditItems()">
             <option value="entrega">Entrega</option><option value="retirada">Retirada</option>
           </select>
         </div>
+      </div>
+      <div id="editFiadoRow" style="display:none;" class="form-group">
+        <label>📅 Data prevista de pagamento (fiado)</label>
+        <input type="date" id="editFiadoData" class="form-control">
       </div>
       <div class="form-group"><label>Observações</label><textarea id="editObs" class="form-control" rows="2"></textarea></div>
       <hr style="margin:14px 0;">
@@ -1049,6 +1053,7 @@ let allDespesas = {};
 let allFiados = {};
 let manualItems = [];
 let editItems = [];
+let editOrigTaxa = 0;
 let pedidosFilter = 'todos';
 let dashPeriod = 'hoje';
 let dreMonthOffset = 0;
@@ -1567,7 +1572,7 @@ function orderCardHtml(id, p, role) {
 function buildStatusBtns(id, p) {
   const s = p.status;
   let btns = '';
-  if (s==='novo') btns += `<button class="btn btn-green btn-sm" onclick="aceitarPedido('${id}')" style="font-weight:700;font-size:.95rem;padding:8px 16px;">✅ Aceitar e Imprimir</button>`;
+  if (s==='novo') btns += `<button class="btn btn-green btn-sm" onclick="aceitarPedido('${id}',true)" style="font-weight:700;font-size:.95rem;padding:8px 16px;">✅ Aceitar e Imprimir</button><button class="btn btn-gray btn-sm" onclick="aceitarPedido('${id}',false)" style="font-weight:700;font-size:.95rem;padding:8px 16px;">✅ Aceitar sem Imprimir</button>`;
   if (s==='preparo') btns += `<button class="btn btn-blue btn-sm" onclick="updateStatus('${id}','pronto')">✅ Pronto</button>`;
   if (s==='pronto') {
     btns += `<button class="btn btn-gray btn-sm" onclick="updateStatus('${id}','preparo')" title="Desfazer Pronto">↩️ Voltar p/ Preparo</button>`;
@@ -1613,12 +1618,12 @@ window.handleSaiuEntrega = function(id) {
 };
 
 // ── ACEITAR PEDIDO ─────────────────────────────────────────────
-window.aceitarPedido = async function(id) {
+window.aceitarPedido = async function(id, shouldPrint = true) {
   const p = allPedidos[id];
   if (!p) return;
   await update(ref(db, `pedidos/${id}`), { status: 'preparo' });
   showToast(`✅ Pedido #${p.num||''} aceito!`, 'success');
-  printOrder(id);
+  if (shouldPrint) printOrder(id);
   saveClienteBasicInfo(p); // garante que cliente fica salvo ao aceitar
   if (p.telefone) {
     const msg = `*O seu pedido foi confirmado! Vamos preparar com muito carinho.* 🍱`;
@@ -3168,10 +3173,13 @@ window.openEditOrderModal = function(id) {
   const p = allPedidos[id];
   if (!p) return;
   editItems = JSON.parse(JSON.stringify(p.items || []));
+  editOrigTaxa = p.taxaOriginal !== undefined ? p.taxaOriginal : (p.taxa || 0);
   document.getElementById('editOrderId').value = id;
   document.getElementById('editPagto').value = p.pagto || 'Dinheiro';
   document.getElementById('editTipo').value = p.tipo || 'entrega';
   document.getElementById('editObs').value = p.obs || '';
+  document.getElementById('editFiadoData').value = '';
+  onEditPagtoChange();
   renderEditItems();
   // Catalog buttons
   const catEl = document.getElementById('editCatalogBtns');
@@ -3207,11 +3215,19 @@ window.addEditItem = function() {
 
 window.removeEditItem = function(idx) { editItems.splice(idx, 1); renderEditItems(); };
 
+window.onEditPagtoChange = function() {
+  const isFiado = document.getElementById('editPagto').value === 'Fiado';
+  document.getElementById('editFiadoRow').style.display = isFiado ? 'block' : 'none';
+  if (isFiado && !document.getElementById('editFiadoData').value) {
+    const d = new Date(); d.setDate(d.getDate() + 7);
+    document.getElementById('editFiadoData').value = d.toISOString().slice(0, 10);
+  }
+};
+
 function renderEditItems() {
   const el = document.getElementById('editItemsList');
-  const id = document.getElementById('editOrderId').value;
-  const p = allPedidos[id] || {};
-  const taxa = p.taxa || 0;
+  const tipo = document.getElementById('editTipo').value;
+  const taxa = tipo === 'retirada' ? 0 : editOrigTaxa;
   const subtotal = editItems.reduce((s, i) => s + (i.price * i.qty), 0);
   const total = subtotal + taxa;
   document.getElementById('editSubtotal').textContent = fmt(subtotal);
@@ -3227,25 +3243,48 @@ function renderEditItems() {
   </div>`).join('')}
   </div>`;
 }
+window.renderEditItems = renderEditItems;
 
 window.saveEditOrder = async function() {
   const id = document.getElementById('editOrderId').value;
   if (!id || !allPedidos[id]) return;
   if (!editItems.length) { showToast('Adicione pelo menos um item.', 'error'); return; }
   const p = allPedidos[id];
-  const taxa = p.taxa || 0;
+  const tipo = document.getElementById('editTipo').value;
+  const pagto = document.getElementById('editPagto').value;
+  const taxa = tipo === 'retirada' ? 0 : editOrigTaxa;
   const subtotal = editItems.reduce((s, i) => s + (i.price * i.qty), 0);
   const total = subtotal + taxa;
   await update(ref(db, `pedidos/${id}`), {
-    pagto: document.getElementById('editPagto').value,
-    tipo: document.getElementById('editTipo').value,
+    pagto,
+    tipo,
+    taxaOriginal: editOrigTaxa,
     obs: document.getElementById('editObs').value.trim(),
     items: editItems,
     subtotal,
+    taxa,
     total
   });
-  closeModal('modalEditOrder');
-  showToast('✅ Pedido atualizado com sucesso!');
+  if (pagto === 'Fiado' && p.pagto !== 'Fiado') {
+    const dataPrevista = document.getElementById('editFiadoData').value;
+    await push(ref(db, 'fiados'), {
+      clienteKey: p.telefone ? 'tel_' + p.telefone.replace(/\D/g, '') : '',
+      clienteNome: p.nome,
+      clienteTelefone: p.telefone || '',
+      pedidoId: id,
+      pedidoNum: p.num,
+      valor: total,
+      dataCriacao: Date.now(),
+      dataPrevista: dataPrevista || '',
+      obs: '',
+      status: 'pendente'
+    });
+    closeModal('modalEditOrder');
+    showToast('✅ Pedido atualizado e fiado lançado! 💰', 'success');
+  } else {
+    closeModal('modalEditOrder');
+    showToast('✅ Pedido atualizado com sucesso!');
+  }
 };
 
 // ── INIT DATE ─────────────────────────────────────────────────
@@ -3278,6 +3317,18 @@ const PRATOS_LIST = [
   { id:'coca-zero-15',     nome:'Coca-Cola Zero 1,5L',       preco:12,  cat:'Bebidas',      especial:false },
   { id:'guarana-15',       nome:'Guaraná 1,5L',              preco:10,  cat:'Bebidas',      especial:false },
   { id:'kuat-2l',          nome:'Kuat 2L',                   preco:10,  cat:'Bebidas',      especial:false },
+  // ── Combos ──
+  { id:'combinado-14pc',   nome:'Combinado 14 Peças',        preco:55,  cat:'Combo',        especial:false },
+  // ── Doces ──
+  { id:'choco-pie',              nome:'Choco Pie',                    preco:25, cat:'Doces', especial:false },
+  { id:'crispy-crepes-morango',  nome:'Crispy Crepes (Morango)',      preco:16, cat:'Doces', especial:false },
+  { id:'crispy-crepes-chocolate',nome:'Crispy Crepes (Chocolate)',    preco:16, cat:'Doces', especial:false },
+  { id:'pejoy-baunilha',         nome:'Pejoy (Baunilha Hokkaido)',    preco:18, cat:'Doces', especial:false },
+  { id:'pejoy-chocolate',        nome:'Pejoy (Chocolate Belga)',      preco:18, cat:'Doces', especial:false },
+  { id:'astor-baunilha',         nome:'Astor Vanilla Shake',          preco:14, cat:'Doces', especial:false },
+  { id:'astor-chocolate',        nome:'Astor Chocolate',              preco:14, cat:'Doces', especial:false },
+  { id:'kancho',                 nome:'Kancho',                       preco:13, cat:'Doces', especial:false },
+  { id:'roll-n-roll',            nome:"Roll N' Roll",                 preco:15, cat:'Doces', especial:false },
 ];
 
 function renderCardapio() {
