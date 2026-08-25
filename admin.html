@@ -398,6 +398,7 @@ tr:hover td{background:#fafafa;}
           <button class="chip active" onclick="setDashPeriod('hoje',this)">Hoje</button>
           <button class="chip" onclick="setDashPeriod('semana',this)">Esta Semana</button>
           <button class="chip" onclick="setDashPeriod('mes',this)">Este Mês</button>
+          <button class="chip" onclick="setDashPeriod('ano',this)">Este Ano</button>
         </div>
       </div>
       <div class="stat-cards">
@@ -561,7 +562,6 @@ tr:hover td{background:#fafafa;}
         <button class="fin-mob-tab active" onclick="finMobTab('dre',this)">📊 DRE</button>
         <button class="fin-mob-tab" onclick="finMobTab('despesa',this)">➕ Despesa</button>
         <button class="fin-mob-tab" onclick="finMobTab('fiado',this)">💰 Fiado</button>
-        <button class="fin-mob-tab" onclick="finMobTab('anual',this)">📅 Anual</button>
       </div>
 
       <!-- SEÇÃO FIADO (desktop: sempre visível; mobile: aba) -->
@@ -609,24 +609,15 @@ tr:hover td{background:#fafafa;}
           <div class="card">
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
               <div class="card-title" style="margin-bottom:0;">DRE — Demonstrativo</div>
-              <div style="display:flex;gap:6px;">
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
                 <button class="chip active" id="dreMes0" onclick="setDrePeriod(0,this)">Este Mês</button>
                 <button class="chip" id="dreMes1" onclick="setDrePeriod(1,this)">Mês Anterior</button>
+                <button class="chip" id="dreAno" onclick="setDrePeriod('ano',this)">📅 Ano</button>
               </div>
             </div>
+            <div id="dreYearChips" style="display:none;gap:6px;flex-wrap:wrap;margin-bottom:10px;"></div>
             <div id="dreContent"></div>
           </div>
-        </div>
-      </div>
-
-      <!-- SEÇÃO ANUAL (fechamento do ano inteiro) -->
-      <div class="fin-mob-section" id="finSec-anual">
-        <div class="card" style="margin-top:20px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
-            <div class="card-title" style="margin-bottom:0;">📅 Fechamento Anual</div>
-            <div id="anualYearChips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
-          </div>
-          <div id="anualContent"></div>
         </div>
       </div>
     </div>
@@ -1072,6 +1063,7 @@ let editOrigTaxa = 0;
 let pedidosFilter = 'todos';
 let dashPeriod = 'hoje';
 let dreMonthOffset = 0;
+let drePeriodMode = 'mes';
 let anualYear = new Date().getFullYear();
 let fiadoExpanded = new Set();
 let relatPeriod = 'hoje';
@@ -1177,7 +1169,7 @@ window.showTab = function(id) {
   if (tab) tab.classList.add('active');
   if (nav) nav.classList.add('active');
   if (id === 'dashboard') renderDashboard();
-  if (id === 'financeiro') { renderDespesas(); renderDRE(); renderFiados(); renderAnual(); }
+  if (id === 'financeiro') { renderDespesas(); renderDRE(); renderFiados(); }
   if (id === 'relatorios') renderRelatorio();
   if (id === 'clientes') renderClientes();
   if (id === 'cardapio') renderCardapio();
@@ -1214,7 +1206,7 @@ function startListeners() {
   });
   onValue(ref(db, 'financeiro/despesas'), snap => {
     allDespesas = snap.val() || {};
-    if (document.getElementById('tab-financeiro').classList.contains('active')) { renderDespesas(); renderDRE(); renderAnual(); }
+    if (document.getElementById('tab-financeiro').classList.contains('active')) { renderDespesas(); renderDRE(); }
   });
   onValue(ref(db, 'fiados'), snap => {
     allFiados = snap.val() || {};
@@ -1283,7 +1275,7 @@ function renderAll() {
   renderPedidos();
   renderCozinha();
   if (currentRole === 'entregador') { renderEntregas(); renderMeuPainel(); }
-  if (document.getElementById('tab-financeiro')?.classList.contains('active')) { renderDRE(); renderAnual(); }
+  if (document.getElementById('tab-financeiro')?.classList.contains('active')) { renderDRE(); }
   updateNovoBadge();
 }
 
@@ -1321,7 +1313,7 @@ function detectNewOrders(prevKeys) {
 }
 
 // ── HELPERS ────────────────────────────────────────────────────
-function fmt(v) { return 'R$' + Number(v||0).toFixed(2).replace('.',','); }
+function fmt(v) { return 'R$' + Number(v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 function fmtDate(ts) {
   if (!ts) return '';
   const d = new Date(ts);
@@ -1344,6 +1336,7 @@ function filterByPeriod(list, period) {
       return d >= start;
     }
     if (period === 'mes') return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+    if (period === 'ano') return d.getFullYear()===now.getFullYear();
     return true;
   });
 }
@@ -2258,7 +2251,8 @@ function renderFiados() {
   const groups = {};
   pendentes.forEach(([id, f]) => {
     const key = fiadoClientKey(f);
-    if (!groups[key]) groups[key] = { nome: f.clienteNome || '—', telefone: f.clienteTelefone || '', entries: [] };
+    if (!groups[key]) groups[key] = { nome: f.clienteNome || '—', telefones: new Set(), entries: [] };
+    if (f.clienteTelefone) groups[key].telefones.add(f.clienteTelefone);
     groups[key].entries.push([id, f]);
   });
 
@@ -2267,7 +2261,7 @@ function renderFiados() {
     const total = entries.reduce((s,[,f])=>s+(f.valor||0),0);
     const hasOverdue = entries.some(([,f]) => f.dataPrevista && f.dataPrevista < today);
     const nextDue = entries.reduce((min,[,f]) => (min===null || (f.dataPrevista||'9999') < min) ? (f.dataPrevista||'9999') : min, null);
-    return { key, nome: g.nome, telefone: g.telefone, entries, total, hasOverdue, nextDue };
+    return { key, nome: g.nome, telefone: [...g.telefones].join(' / '), entries, total, hasOverdue, nextDue };
   }).sort((a,b) => {
     if (a.hasOverdue !== b.hasOverdue) return a.hasOverdue ? -1 : 1;
     return (a.nextDue||'9999') > (b.nextDue||'9999') ? 1 : -1;
@@ -2312,7 +2306,6 @@ function renderFiados() {
 }
 
 function fiadoClientKey(f) {
-  if (f.clienteKey && f.clienteKey.trim()) return f.clienteKey.trim();
   const norm = (f.clienteNome || 'desconhecido').toLowerCase()
     .normalize('NFD').replace(/[^\x00-\x7F]/g, '')
     .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -2436,16 +2429,28 @@ window.saveDespesa = async function() {
 window.finMobTab = function(name, btn) {
   document.querySelectorAll('.fin-mob-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  ['dre','despesa','fiado','anual'].forEach(s => {
+  ['dre','despesa','fiado'].forEach(s => {
     document.getElementById('finSec-'+s)?.classList.remove('active');
   });
   document.getElementById('finSec-'+name)?.classList.add('active');
 };
 
-window.setDrePeriod = function(offset, el) {
-  dreMonthOffset = offset;
-  document.querySelectorAll('[id^="dreMes"]').forEach(b => b.classList.remove('active'));
+window.setDrePeriod = function(period, el) {
+  if (period === 'ano') {
+    drePeriodMode = 'ano';
+  } else {
+    drePeriodMode = 'mes';
+    dreMonthOffset = period;
+  }
+  document.querySelectorAll('#finSec-dre [id^="dreMes"], #dreAno').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
+  const yearChipsEl = document.getElementById('dreYearChips');
+  if (yearChipsEl) yearChipsEl.style.display = (drePeriodMode === 'ano') ? 'flex' : 'none';
+  renderDRE(); renderDespesas();
+};
+
+window.setAnualYearInDre = function(year) {
+  anualYear = year;
   renderDRE(); renderDespesas();
 };
 
@@ -2458,8 +2463,36 @@ function getMonthRange(offset) {
   return { start, end };
 }
 
+function getYearRange(year) {
+  const start = new Date(year, 0, 1);
+  const end = new Date(year, 11, 31, 23, 59, 59);
+  return { start, end };
+}
+
+function getAnualYears() {
+  const years = new Set([new Date().getFullYear()]);
+  Object.values(allPedidos).forEach(p => { if (p.timestamp) years.add(new Date(p.timestamp).getFullYear()); });
+  Object.values(allDespesas).forEach(d => { if (d.data) years.add(parseInt(d.data.slice(0,4), 10)); });
+  return [...years].sort((a,b) => b - a);
+}
+
+function getDrePeriodRange() {
+  if (drePeriodMode === 'ano') return { ...getYearRange(anualYear), isYear: true };
+  return { ...getMonthRange(dreMonthOffset), isYear: false };
+}
+
+function renderDreYearChips() {
+  const wrap = document.getElementById('dreYearChips');
+  if (!wrap) return;
+  const years = getAnualYears();
+  if (drePeriodMode !== 'ano' || years.length <= 1) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+  wrap.style.display = 'flex';
+  wrap.innerHTML = years.map(y => `<button class="chip ${y===anualYear?'active':''}" onclick="setAnualYearInDre(${y})">${y}</button>`).join('');
+}
+
 function renderDRE() {
-  const { start, end } = getMonthRange(dreMonthOffset);
+  renderDreYearChips();
+  const { start, end, isYear } = getDrePeriodRange();
   const pedidosPeriod = Object.values(allPedidos).filter(p => {
     const d = new Date(p.timestamp||0);
     return d >= start && d <= end && p.status !== 'cancelado';
@@ -2467,17 +2500,51 @@ function renderDRE() {
   const receitaBruta = pedidosPeriod.reduce((s,p)=>s+(p.total||0),0);
   const taxasEnt = pedidosPeriod.reduce((s,p)=>s+(p.taxa||0),0);
   const receitaLiq = receitaBruta - taxasEnt;
-  const desp = Object.values(allDespesas).filter(d => d.data >= start.toISOString().slice(0,10) && d.data <= end.toISOString().slice(0,10));
+  const startStr = start.toISOString().slice(0,10);
+  const endStr = end.toISOString().slice(0,10);
+  const desp = Object.values(allDespesas).filter(d => d.data >= startStr && d.data <= endStr);
   const totalDesp = desp.reduce((s,d)=>s+(d.valor||0),0);
   const lucro = receitaLiq - totalDesp;
   const cats = {};
   desp.forEach(d => { cats[d.categoria]=(cats[d.categoria]||0)+(d.valor||0); });
-  const monthLabel = start.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  const periodLabel = isYear ? `Ano de ${anualYear}` : start.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
   const isMob = window.innerWidth < 768;
+
+  let anoExtraHtml = '';
+  if (isYear) {
+    const pedidosOrdenados = pedidosPeriod.slice().sort((a,b) => (a.timestamp||0) - (b.timestamp||0));
+    const monthNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const porMes = monthNames.map((label, m) => {
+      const recM = pedidosPeriod.filter(p => new Date(p.timestamp).getMonth() === m).reduce((s,p)=>s+(p.total||0),0);
+      const despM = desp.filter(d => (parseInt(d.data.slice(5,7),10)-1) === m).reduce((s,d)=>s+(d.valor||0),0);
+      return { label, receita: recM, despesa: despM };
+    });
+    anoExtraHtml = `
+      <div class="dre-section-title">Resumo Mês a Mês</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Mês</th><th>Faturamento</th><th>Despesas</th><th>Resultado</th></tr></thead>
+          <tbody>
+            ${porMes.map(m => `<tr><td>${m.label}</td><td>${fmt(m.receita)}</td><td style="color:var(--red)">- ${fmt(m.despesa)}</td><td style="font-weight:700;color:${(m.receita-m.despesa)>=0?'var(--green)':'var(--red)'}">${fmt(m.receita-m.despesa)}</td></tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="dre-section-title">Relação de Vendas — Ano Inteiro (${pedidosOrdenados.length} pedidos)</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Data</th><th>Cliente</th><th>Tipo</th><th>Pagamento</th><th>Total</th><th>Status</th></tr></thead>
+          <tbody>
+            ${pedidosOrdenados.length ? pedidosOrdenados.map(p => `<tr><td>${p.num||''}</td><td>${tsToDate(p.timestamp)}</td><td>${p.nome||'—'}</td><td>${p.tipo||'—'}</td><td>${p.pagto||'—'}</td><td>${fmt(p.total)}</td><td>${badgeHtml(p.status)}</td></tr>`).join('') : '<tr><td colspan="7"><div class="empty-state"><p>Nenhuma venda neste ano.</p></div></td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
   if (isMob) {
     const catsHtml = Object.entries(cats).map(([c,v])=>`<div class="dre-mob-cat-row"><span>${c}</span><span style="font-weight:700;color:#991b1b;">- ${fmt(v)}</span></div>`).join('');
     document.getElementById('dreContent').innerHTML = `
-      <div style="font-size:.75rem;color:var(--gray);font-weight:600;text-transform:uppercase;margin-bottom:12px;">${monthLabel}</div>
+      <div style="font-size:.75rem;color:var(--gray);font-weight:600;text-transform:uppercase;margin-bottom:12px;">${periodLabel}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
         <div class="dre-mob-card"><div class="dre-mob-label">Receita Bruta</div><div class="dre-mob-val blue">${fmt(receitaBruta)}</div></div>
         <div class="dre-mob-card"><div class="dre-mob-label">Receita Líquida</div><div class="dre-mob-val blue">${fmt(receitaLiq)}</div><div style="font-size:.7rem;color:var(--gray);">Após taxa entrega</div></div>
@@ -2485,10 +2552,11 @@ function renderDRE() {
         <div class="dre-mob-card" style="background:${lucro>=0?'#f0fdf4':'#fef2f2'};"><div class="dre-mob-label">Lucro / Prejuízo</div><div class="dre-mob-val ${lucro>=0?'green':'red'}">${lucro>=0?'+':''}${fmt(lucro)}</div></div>
       </div>
       ${catsHtml ? `<div class="dre-mob-cats"><div style="font-size:.72rem;color:var(--gray);font-weight:700;text-transform:uppercase;margin-bottom:6px;">Despesas por categoria</div>${catsHtml}</div>` : ''}
+      ${anoExtraHtml}
     `;
   } else {
     document.getElementById('dreContent').innerHTML = `
-      <div style="font-size:.78rem;color:var(--gray);margin-bottom:8px;">${monthLabel}</div>
+      <div style="font-size:.78rem;color:var(--gray);margin-bottom:8px;">${periodLabel}</div>
       <div class="dre-row"><span>Receita Bruta</span><span>${fmt(receitaBruta)}</span></div>
       <div class="dre-row" style="color:var(--gray)"><span>— Taxa de Entrega</span><span>- ${fmt(taxasEnt)}</span></div>
       <div class="dre-row total"><span>Receita Líquida</span><span>${fmt(receitaLiq)}</span></div>
@@ -2496,12 +2564,13 @@ function renderDRE() {
       ${Object.entries(cats).map(([c,v])=>`<div class="dre-row"><span>${c}</span><span>- ${fmt(v)}</span></div>`).join('')}
       <div class="dre-row total"><span>Total Despesas</span><span>- ${fmt(totalDesp)}</span></div>
       <div class="dre-row profit ${lucro>=0?'pos':'neg'} total"><span>Lucro / Prejuízo</span><span>${lucro>=0?'+':''}${fmt(lucro)}</span></div>
+      ${anoExtraHtml}
     `;
   }
 }
 
 function renderDespesas() {
-  const { start, end } = getMonthRange(dreMonthOffset);
+  const { start, end } = getDrePeriodRange();
   const el = document.getElementById('despesasList');
   const list = Object.entries(allDespesas).filter(([,d]) => d.data >= start.toISOString().slice(0,10) && d.data <= end.toISOString().slice(0,10))
     .sort((a,b)=>b[1].data.localeCompare(a[1].data));
@@ -2528,98 +2597,6 @@ window.deleteDespesa = async function(id) {
   showToast('Despesa removida.','warn');
 };
 
-// ── FINANCEIRO — FECHAMENTO ANUAL ───────────────────────────────
-function getYearRange(year) {
-  const start = new Date(year, 0, 1);
-  const end = new Date(year, 11, 31, 23, 59, 59);
-  return { start, end };
-}
-
-function getAnualYears() {
-  const years = new Set([new Date().getFullYear()]);
-  Object.values(allPedidos).forEach(p => { if (p.timestamp) years.add(new Date(p.timestamp).getFullYear()); });
-  Object.values(allDespesas).forEach(d => { if (d.data) years.add(parseInt(d.data.slice(0,4), 10)); });
-  return [...years].sort((a,b) => b - a);
-}
-
-window.setAnualYear = function(year) {
-  anualYear = year;
-  renderAnual();
-};
-
-function renderAnualYearChips() {
-  const chipsEl = document.getElementById('anualYearChips');
-  if (!chipsEl) return;
-  const years = getAnualYears();
-  chipsEl.innerHTML = years.map(y => `<button class="chip ${y===anualYear?'active':''}" onclick="setAnualYear(${y},this)">${y}</button>`).join('');
-}
-
-function renderAnual() {
-  const content = document.getElementById('anualContent');
-  if (!content) return;
-  renderAnualYearChips();
-
-  const { start, end } = getYearRange(anualYear);
-  const pedidosAno = Object.values(allPedidos).filter(p => {
-    const d = new Date(p.timestamp||0);
-    return d >= start && d <= end && p.status !== 'cancelado';
-  }).sort((a,b) => (a.timestamp||0) - (b.timestamp||0));
-
-  const receitaBruta = pedidosAno.reduce((s,p)=>s+(p.total||0),0);
-  const taxasEnt = pedidosAno.reduce((s,p)=>s+(p.taxa||0),0);
-  const receitaLiq = receitaBruta - taxasEnt;
-
-  const startStr = start.toISOString().slice(0,10);
-  const endStr = end.toISOString().slice(0,10);
-  const despAno = Object.values(allDespesas).filter(d => d.data >= startStr && d.data <= endStr);
-  const totalDesp = despAno.reduce((s,d)=>s+(d.valor||0),0);
-  const lucro = receitaLiq - totalDesp;
-
-  const cats = {};
-  despAno.forEach(d => { cats[d.categoria] = (cats[d.categoria]||0) + (d.valor||0); });
-  const catsSorted = Object.entries(cats).sort((a,b) => b[1] - a[1]);
-
-  const monthNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-  const porMes = monthNames.map((label, m) => {
-    const recM = pedidosAno.filter(p => new Date(p.timestamp).getMonth() === m).reduce((s,p)=>s+(p.total||0),0);
-    const despM = despAno.filter(d => (parseInt(d.data.slice(5,7),10)-1) === m).reduce((s,d)=>s+(d.valor||0),0);
-    return { label, receita: recM, despesa: despM };
-  });
-
-  content.innerHTML = `
-    <div style="font-size:.78rem;color:var(--gray);margin-bottom:8px;">Ano de ${anualYear} — ${pedidosAno.length} venda(s)</div>
-    <div class="stat-cards" style="margin-bottom:16px;">
-      <div class="stat-card blue"><div class="stat-val">${fmt(receitaBruta)}</div><div class="stat-lbl">Faturamento Bruto</div></div>
-      <div class="stat-card blue"><div class="stat-val">${fmt(receitaLiq)}</div><div class="stat-lbl">Receita Líquida</div></div>
-      <div class="stat-card red"><div class="stat-val">${fmt(totalDesp)}</div><div class="stat-lbl">Total Despesas</div></div>
-      <div class="stat-card ${lucro>=0?'green':'red'}"><div class="stat-val">${lucro>=0?'+':''}${fmt(lucro)}</div><div class="stat-lbl">Lucro / Prejuízo</div></div>
-    </div>
-
-    <div class="dre-section-title">Despesas por Categoria — Total do Ano</div>
-    ${catsSorted.length ? catsSorted.map(([c,v])=>`<div class="dre-row"><span>${c}</span><span>- ${fmt(v)}</span></div>`).join('') : '<div class="empty-state"><p>Nenhuma despesa lançada neste ano.</p></div>'}
-    ${catsSorted.length ? `<div class="dre-row total"><span>Total Despesas</span><span>- ${fmt(totalDesp)}</span></div>` : ''}
-
-    <div class="dre-section-title">Resumo Mês a Mês</div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Mês</th><th>Faturamento</th><th>Despesas</th><th>Resultado</th></tr></thead>
-        <tbody>
-          ${porMes.map(m => `<tr><td>${m.label}</td><td>${fmt(m.receita)}</td><td style="color:var(--red)">- ${fmt(m.despesa)}</td><td style="font-weight:700;color:${(m.receita-m.despesa)>=0?'var(--green)':'var(--red)'}">${fmt(m.receita-m.despesa)}</td></tr>`).join('')}
-        </tbody>
-      </table>
-    </div>
-
-    <div class="dre-section-title">Relação de Vendas — Ano Inteiro (${pedidosAno.length} pedidos)</div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>#</th><th>Data</th><th>Cliente</th><th>Tipo</th><th>Pagamento</th><th>Total</th><th>Status</th></tr></thead>
-        <tbody>
-          ${pedidosAno.length ? pedidosAno.map(p => `<tr><td>${p.num||''}</td><td>${tsToDate(p.timestamp)}</td><td>${p.nome||'—'}</td><td>${p.tipo||'—'}</td><td>${p.pagto||'—'}</td><td>${fmt(p.total)}</td><td>${badgeHtml(p.status)}</td></tr>`).join('') : '<tr><td colspan="7"><div class="empty-state"><p>Nenhuma venda neste ano.</p></div></td></tr>'}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
 
 // ── ESTOQUE ────────────────────────────────────────────────────
 function renderEstoque() {
