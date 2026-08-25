@@ -558,6 +558,7 @@ tr:hover td{background:#fafafa;}
         <button class="fin-mob-tab active" onclick="finMobTab('dre',this)">📊 DRE</button>
         <button class="fin-mob-tab" onclick="finMobTab('despesa',this)">➕ Despesa</button>
         <button class="fin-mob-tab" onclick="finMobTab('fiado',this)">💰 Fiado</button>
+        <button class="fin-mob-tab" onclick="finMobTab('anual',this)">📅 Anual</button>
       </div>
 
       <!-- SEÇÃO FIADO (desktop: sempre visível; mobile: aba) -->
@@ -612,6 +613,17 @@ tr:hover td{background:#fafafa;}
             </div>
             <div id="dreContent"></div>
           </div>
+        </div>
+      </div>
+
+      <!-- SEÇÃO ANUAL (fechamento do ano inteiro) -->
+      <div class="fin-mob-section" id="finSec-anual">
+        <div class="card" style="margin-top:20px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+            <div class="card-title" style="margin-bottom:0;">📅 Fechamento Anual</div>
+            <div id="anualYearChips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+          </div>
+          <div id="anualContent"></div>
         </div>
       </div>
     </div>
@@ -1057,6 +1069,7 @@ let editOrigTaxa = 0;
 let pedidosFilter = 'todos';
 let dashPeriod = 'hoje';
 let dreMonthOffset = 0;
+let anualYear = new Date().getFullYear();
 let relatPeriod = 'hoje';
 let autoPrint = false;
 let chartBar = null;
@@ -1160,7 +1173,7 @@ window.showTab = function(id) {
   if (tab) tab.classList.add('active');
   if (nav) nav.classList.add('active');
   if (id === 'dashboard') renderDashboard();
-  if (id === 'financeiro') { renderDespesas(); renderDRE(); renderFiados(); }
+  if (id === 'financeiro') { renderDespesas(); renderDRE(); renderFiados(); renderAnual(); }
   if (id === 'relatorios') renderRelatorio();
   if (id === 'clientes') renderClientes();
   if (id === 'cardapio') renderCardapio();
@@ -1197,7 +1210,7 @@ function startListeners() {
   });
   onValue(ref(db, 'financeiro/despesas'), snap => {
     allDespesas = snap.val() || {};
-    if (document.getElementById('tab-financeiro').classList.contains('active')) { renderDespesas(); renderDRE(); }
+    if (document.getElementById('tab-financeiro').classList.contains('active')) { renderDespesas(); renderDRE(); renderAnual(); }
   });
   onValue(ref(db, 'fiados'), snap => {
     allFiados = snap.val() || {};
@@ -1266,6 +1279,7 @@ function renderAll() {
   renderPedidos();
   renderCozinha();
   if (currentRole === 'entregador') { renderEntregas(); renderMeuPainel(); }
+  if (document.getElementById('tab-financeiro')?.classList.contains('active')) { renderDRE(); renderAnual(); }
   updateNovoBadge();
 }
 
@@ -2360,7 +2374,7 @@ window.saveDespesa = async function() {
 window.finMobTab = function(name, btn) {
   document.querySelectorAll('.fin-mob-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  ['dre','despesa','fiado'].forEach(s => {
+  ['dre','despesa','fiado','anual'].forEach(s => {
     document.getElementById('finSec-'+s)?.classList.remove('active');
   });
   document.getElementById('finSec-'+name)?.classList.add('active');
@@ -2451,6 +2465,99 @@ window.deleteDespesa = async function(id) {
   await remove(ref(db,`financeiro/despesas/${id}`));
   showToast('Despesa removida.','warn');
 };
+
+// ── FINANCEIRO — FECHAMENTO ANUAL ───────────────────────────────
+function getYearRange(year) {
+  const start = new Date(year, 0, 1);
+  const end = new Date(year, 11, 31, 23, 59, 59);
+  return { start, end };
+}
+
+function getAnualYears() {
+  const years = new Set([new Date().getFullYear()]);
+  Object.values(allPedidos).forEach(p => { if (p.timestamp) years.add(new Date(p.timestamp).getFullYear()); });
+  Object.values(allDespesas).forEach(d => { if (d.data) years.add(parseInt(d.data.slice(0,4), 10)); });
+  return [...years].sort((a,b) => b - a);
+}
+
+window.setAnualYear = function(year) {
+  anualYear = year;
+  renderAnual();
+};
+
+function renderAnualYearChips() {
+  const chipsEl = document.getElementById('anualYearChips');
+  if (!chipsEl) return;
+  const years = getAnualYears();
+  chipsEl.innerHTML = years.map(y => `<button class="chip ${y===anualYear?'active':''}" onclick="setAnualYear(${y},this)">${y}</button>`).join('');
+}
+
+function renderAnual() {
+  const content = document.getElementById('anualContent');
+  if (!content) return;
+  renderAnualYearChips();
+
+  const { start, end } = getYearRange(anualYear);
+  const pedidosAno = Object.values(allPedidos).filter(p => {
+    const d = new Date(p.timestamp||0);
+    return d >= start && d <= end && p.status !== 'cancelado';
+  }).sort((a,b) => (a.timestamp||0) - (b.timestamp||0));
+
+  const receitaBruta = pedidosAno.reduce((s,p)=>s+(p.total||0),0);
+  const taxasEnt = pedidosAno.reduce((s,p)=>s+(p.taxa||0),0);
+  const receitaLiq = receitaBruta - taxasEnt;
+
+  const startStr = start.toISOString().slice(0,10);
+  const endStr = end.toISOString().slice(0,10);
+  const despAno = Object.values(allDespesas).filter(d => d.data >= startStr && d.data <= endStr);
+  const totalDesp = despAno.reduce((s,d)=>s+(d.valor||0),0);
+  const lucro = receitaLiq - totalDesp;
+
+  const cats = {};
+  despAno.forEach(d => { cats[d.categoria] = (cats[d.categoria]||0) + (d.valor||0); });
+  const catsSorted = Object.entries(cats).sort((a,b) => b[1] - a[1]);
+
+  const monthNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const porMes = monthNames.map((label, m) => {
+    const recM = pedidosAno.filter(p => new Date(p.timestamp).getMonth() === m).reduce((s,p)=>s+(p.total||0),0);
+    const despM = despAno.filter(d => (parseInt(d.data.slice(5,7),10)-1) === m).reduce((s,d)=>s+(d.valor||0),0);
+    return { label, receita: recM, despesa: despM };
+  });
+
+  content.innerHTML = `
+    <div style="font-size:.78rem;color:var(--gray);margin-bottom:8px;">Ano de ${anualYear} — ${pedidosAno.length} venda(s)</div>
+    <div class="stat-cards" style="margin-bottom:16px;">
+      <div class="stat-card blue"><div class="stat-val">${fmt(receitaBruta)}</div><div class="stat-lbl">Faturamento Bruto</div></div>
+      <div class="stat-card blue"><div class="stat-val">${fmt(receitaLiq)}</div><div class="stat-lbl">Receita Líquida</div></div>
+      <div class="stat-card red"><div class="stat-val">${fmt(totalDesp)}</div><div class="stat-lbl">Total Despesas</div></div>
+      <div class="stat-card ${lucro>=0?'green':'red'}"><div class="stat-val">${lucro>=0?'+':''}${fmt(lucro)}</div><div class="stat-lbl">Lucro / Prejuízo</div></div>
+    </div>
+
+    <div class="dre-section-title">Despesas por Categoria — Total do Ano</div>
+    ${catsSorted.length ? catsSorted.map(([c,v])=>`<div class="dre-row"><span>${c}</span><span>- ${fmt(v)}</span></div>`).join('') : '<div class="empty-state"><p>Nenhuma despesa lançada neste ano.</p></div>'}
+    ${catsSorted.length ? `<div class="dre-row total"><span>Total Despesas</span><span>- ${fmt(totalDesp)}</span></div>` : ''}
+
+    <div class="dre-section-title">Resumo Mês a Mês</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Mês</th><th>Faturamento</th><th>Despesas</th><th>Resultado</th></tr></thead>
+        <tbody>
+          ${porMes.map(m => `<tr><td>${m.label}</td><td>${fmt(m.receita)}</td><td style="color:var(--red)">- ${fmt(m.despesa)}</td><td style="font-weight:700;color:${(m.receita-m.despesa)>=0?'var(--green)':'var(--red)'}">${fmt(m.receita-m.despesa)}</td></tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="dre-section-title">Relação de Vendas — Ano Inteiro (${pedidosAno.length} pedidos)</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Data</th><th>Cliente</th><th>Tipo</th><th>Pagamento</th><th>Total</th><th>Status</th></tr></thead>
+        <tbody>
+          ${pedidosAno.length ? pedidosAno.map(p => `<tr><td>${p.num||''}</td><td>${tsToDate(p.timestamp)}</td><td>${p.nome||'—'}</td><td>${p.tipo||'—'}</td><td>${p.pagto||'—'}</td><td>${fmt(p.total)}</td><td>${badgeHtml(p.status)}</td></tr>`).join('') : '<tr><td colspan="7"><div class="empty-state"><p>Nenhuma venda neste ano.</p></div></td></tr>'}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
 
 // ── ESTOQUE ────────────────────────────────────────────────────
 function renderEstoque() {
