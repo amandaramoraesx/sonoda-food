@@ -319,8 +319,18 @@ tr:hover td{background:#fafafa;}
 .fiado-badge-late{background:#fee2e2;color:#991b1b;padding:2px 10px;border-radius:20px;font-size:.72rem;font-weight:700;}
 .fiado-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;}
 
+/* FIADO — agrupado por cliente */
+.fiado-client-card{border:1px solid #e5e7eb;border-radius:12px;margin-bottom:10px;overflow:hidden;}
+.fiado-client-header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;cursor:pointer;background:#fff;transition:.15s;flex-wrap:wrap;}
+.fiado-client-header:hover{background:#f9fafb;}
+.fiado-client-name{font-weight:700;font-size:.92rem;}
+.fiado-client-sub{font-size:.76rem;color:var(--gray);margin-top:2px;}
+.fiado-chevron{font-size:.9rem;color:var(--gray);transition:.15s;}
+.fiado-client-entries{padding:6px 14px 12px;background:#fafafa;border-top:1px solid #f3f4f6;}
+.fiado-client-entries .fiado-card{background:#fff;}
+
 /* FIN GRID */
-.fin-grid{display:grid;grid-template-columns:1fr 1.5fr;gap:20px;}
+.fin-grid{display:block;}
 
 /* DESPESA CARD */
 .desp-card{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #f3f4f6;}
@@ -335,21 +345,14 @@ tr:hover td{background:#fafafa;}
 /* PRATO BUTTONS */
 .prato-toggle-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
 
-/* FIN MOBILE TABS */
-.fin-mob-tabs{display:none;}
-.fin-desktop-desp{display:block;}
+/* FIN TABS — mesma navegação em abas no mobile e no desktop, uma seção por vez */
+.fin-mob-tabs{display:flex;gap:0;background:#f3f4f6;border-radius:14px;padding:4px;margin-bottom:16px;max-width:600px;flex-wrap:wrap;}
+.fin-mob-tab{flex:1;min-width:110px;border:none;background:transparent;padding:9px 4px;border-radius:10px;font-size:.8rem;font-weight:600;color:var(--gray);cursor:pointer;transition:.15s;}
+.fin-mob-tab.active{background:#fff;color:var(--red);box-shadow:0 1px 4px rgba(0,0,0,.1);}
+.fin-mob-section{display:none;}
+.fin-mob-section.active{display:block;}
 @media(max-width:767px){
-  .fin-mob-tabs{display:flex;gap:0;background:#f3f4f6;border-radius:14px;padding:4px;margin-bottom:16px;}
-  .fin-mob-tab{flex:1;border:none;background:transparent;padding:9px 4px;border-radius:10px;font-size:.8rem;font-weight:600;color:var(--gray);cursor:pointer;transition:.15s;}
-  .fin-mob-tab.active{background:#fff;color:var(--red);box-shadow:0 1px 4px rgba(0,0,0,.1);}
-  .fin-mob-section{display:none;}
-  .fin-mob-section.active{display:block;}
-  .fin-grid{display:block;}
   .fin-btn-row{display:grid;grid-template-columns:1fr auto;gap:8px;}
-  .fin-desktop-desp{display:none;}
-}
-@media(min-width:768px){
-  .fin-mob-section{display:block !important;}
 }
 </style>
 </head>
@@ -1070,6 +1073,7 @@ let pedidosFilter = 'todos';
 let dashPeriod = 'hoje';
 let dreMonthOffset = 0;
 let anualYear = new Date().getFullYear();
+let fiadoExpanded = new Set();
 let relatPeriod = 'hoje';
 let autoPrint = false;
 let chartBar = null;
@@ -2249,28 +2253,86 @@ function renderFiados() {
     el.innerHTML = '<div class="empty-state"><div class="icon">✅</div><p>Nenhum valor em aberto. Tudo em dia!</p></div>';
     return;
   }
-  const sorted = pendentes.sort((a,b) => (a[1].dataPrevista||'9999') > (b[1].dataPrevista||'9999') ? 1 : -1);
-  el.innerHTML = sorted.map(([id, f]) => {
-    const overdue = f.dataPrevista && f.dataPrevista < today;
-    const daysLate = overdue ? Math.max(1, Math.floor((new Date(today) - new Date(f.dataPrevista)) / 86400000)) : 0;
-    return `<div class="fiado-card${overdue?' atrasado':''}">
-      <div style="flex:1;min-width:160px;">
-        <div style="font-weight:700;font-size:.9rem;">${f.clienteNome||'—'} <span style="font-weight:400;color:var(--gray);font-size:.78rem;">${f.clienteTelefone||''}</span></div>
-        <div style="font-size:.77rem;color:var(--gray);margin-top:2px;">${f.pedidoNum?`Pedido #${f.pedidoNum} · `:''}Registrado em ${fmtDate(f.dataCriacao)}${f.obs?`<br>📝 ${f.obs}`:''}</div>
-        <div style="margin-top:5px;">
-          ${overdue
-            ? `<span class="fiado-badge-late">⚠️ ${daysLate} dia${daysLate!==1?'s':''} em atraso</span>`
-            : `<span class="fiado-badge-ok">📅 Pagar até ${fmtDateBr(f.dataPrevista)}</span>`}
+
+  // ── Agrupa todos os fiados do mesmo cliente num único card ──
+  const groups = {};
+  pendentes.forEach(([id, f]) => {
+    const key = fiadoClientKey(f);
+    if (!groups[key]) groups[key] = { nome: f.clienteNome || '—', telefone: f.clienteTelefone || '', entries: [] };
+    groups[key].entries.push([id, f]);
+  });
+
+  const groupList = Object.entries(groups).map(([key, g]) => {
+    const entries = g.entries.sort((a,b) => (a[1].dataPrevista||'9999') > (b[1].dataPrevista||'9999') ? 1 : -1);
+    const total = entries.reduce((s,[,f])=>s+(f.valor||0),0);
+    const hasOverdue = entries.some(([,f]) => f.dataPrevista && f.dataPrevista < today);
+    const nextDue = entries.reduce((min,[,f]) => (min===null || (f.dataPrevista||'9999') < min) ? (f.dataPrevista||'9999') : min, null);
+    return { key, nome: g.nome, telefone: g.telefone, entries, total, hasOverdue, nextDue };
+  }).sort((a,b) => {
+    if (a.hasOverdue !== b.hasOverdue) return a.hasOverdue ? -1 : 1;
+    return (a.nextDue||'9999') > (b.nextDue||'9999') ? 1 : -1;
+  });
+
+  el.innerHTML = groupList.map(g => {
+    const isOpen = fiadoExpanded.has(g.key);
+    return `<div class="fiado-client-card">
+      <div class="fiado-client-header" onclick="toggleFiadoClient('${g.key}')">
+        <div style="min-width:0;">
+          <div class="fiado-client-name">${g.nome} <span style="font-weight:400;color:var(--gray);font-size:.78rem;">${g.telefone||''}</span></div>
+          <div class="fiado-client-sub">${g.entries.length} fiado${g.entries.length!==1?'s':''} em aberto${g.hasOverdue?' · <span style="color:var(--red);font-weight:700;">⚠️ em atraso</span>':''}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+          <div style="font-size:1.05rem;font-weight:800;color:var(--red);">${fmt(g.total)}</div>
+          <span class="fiado-chevron" id="fiadoChevron-${g.key}">${isOpen?'▾':'▸'}</span>
         </div>
       </div>
-      <div class="fiado-actions">
-        <div style="font-size:1.1rem;font-weight:800;color:var(--red);min-width:70px;text-align:right;">${fmt(f.valor)}</div>
-        <button class="btn btn-green btn-sm" onclick="darBaixaFiado('${id}')">✅ Baixa</button>
-        <button class="btn btn-gray btn-sm" onclick="deleteFiado('${id}')">🗑️</button>
+      <div class="fiado-client-entries" id="fiadoEntries-${g.key}" style="display:${isOpen?'block':'none'};">
+        ${g.entries.map(([id, f]) => {
+          const overdue = f.dataPrevista && f.dataPrevista < today;
+          const daysLate = overdue ? Math.max(1, Math.floor((new Date(today) - new Date(f.dataPrevista)) / 86400000)) : 0;
+          return `<div class="fiado-card${overdue?' atrasado':''}">
+            <div style="flex:1;min-width:160px;">
+              <div style="font-size:.77rem;color:var(--gray);">${f.pedidoNum?`Pedido #${f.pedidoNum} · `:''}Registrado em ${fmtDate(f.dataCriacao)}${f.obs?`<br>📝 ${f.obs}`:''}</div>
+              <div style="margin-top:5px;">
+                ${overdue
+                  ? `<span class="fiado-badge-late">⚠️ ${daysLate} dia${daysLate!==1?'s':''} em atraso</span>`
+                  : `<span class="fiado-badge-ok">📅 Pagar até ${fmtDateBr(f.dataPrevista)}</span>`}
+              </div>
+            </div>
+            <div class="fiado-actions">
+              <div style="font-size:1.1rem;font-weight:800;color:var(--red);min-width:70px;text-align:right;">${fmt(f.valor)}</div>
+              <button class="btn btn-green btn-sm" onclick="darBaixaFiado('${id}')">✅ Baixa</button>
+              <button class="btn btn-gray btn-sm" onclick="deleteFiado('${id}')">🗑️</button>
+            </div>
+          </div>`;
+        }).join('')}
       </div>
     </div>`;
   }).join('');
 }
+
+function fiadoClientKey(f) {
+  if (f.clienteKey && f.clienteKey.trim()) return f.clienteKey.trim();
+  const norm = (f.clienteNome || 'desconhecido').toLowerCase()
+    .normalize('NFD').replace(/[^\x00-\x7F]/g, '')
+    .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  return 'nome_' + (norm || 'desconhecido');
+}
+
+window.toggleFiadoClient = function(key) {
+  const entriesEl = document.getElementById('fiadoEntries-' + key);
+  const chevEl = document.getElementById('fiadoChevron-' + key);
+  if (!entriesEl) return;
+  if (fiadoExpanded.has(key)) {
+    fiadoExpanded.delete(key);
+    entriesEl.style.display = 'none';
+    if (chevEl) chevEl.textContent = '▸';
+  } else {
+    fiadoExpanded.add(key);
+    entriesEl.style.display = 'block';
+    if (chevEl) chevEl.textContent = '▾';
+  }
+};
 
 window.openFiadoModal = function(pedidoId, nome, telefone, valor, pedidoNum) {
   document.getElementById('fiadoPedidoId').value = pedidoId || '';
