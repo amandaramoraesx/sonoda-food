@@ -2248,7 +2248,13 @@ window.showEntregadorRelatorio = function(id) {
   alert(`📊 Relatório Mensal — ${e.nome}\n\nEntregas este mês: ${orders.length}\nTaxa coletada: ${fmt(taxa)}\n\nSalário mensal fixo: ${fmt(salarioMensal)}\nDiária (Fri/Sáb/Dom + feriados): ${diariaTxt}`);
 };
 
-function populateEntregadorDropdowns() {}
+function populateEntregadorDropdowns() {
+  // Reconstrói a lista "Atribuir" nos pedidos sempre que a lista de
+  // entregadores mudar (cadastro novo, edição, ativar/desativar).
+  // Sem isso, se os pedidos carregarem antes dos entregadores, o
+  // dropdown ficava vazio até o próximo pedido novo chegar.
+  if (document.getElementById('pedidosList')) renderPedidos();
+}
 
 // ── FIADO ───────────────────────────────────────────────────────
 function fmtDateBr(iso) {
