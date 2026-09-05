@@ -961,6 +961,10 @@ tr:hover td{background:#fafafa;}
       <div class="form-group">
         <label class="toggle-wrap"><label class="toggle"><input type="checkbox" id="entAtivo" checked><span class="toggle-slider"></span></label>Ativo</label>
       </div>
+      <div class="form-group">
+        <label class="toggle-wrap"><label class="toggle"><input type="checkbox" id="entSemDiaria"><span class="toggle-slider"></span></label>Sócio/Dono — não cobra diária</label>
+        <div style="font-size:.72rem;color:var(--gray);margin-top:3px;">Marque para entregadores que são donos/sócios: eles podem fazer entregas normalmente, mas a diária fixa não é cobrada nem aparece no fechamento de caixa.</div>
+      </div>
       <input type="hidden" id="entId">
     </div>
     <div class="modal-footer">
@@ -1767,15 +1771,17 @@ function renderMeuPainel() {
 
   pedidosDia.sort((a,b)=>(a.timestamp||0)-(b.timestamp||0));
 
-  const diariaSemana = diasSemana.size * DIARIA;
-  const diariaMes    = diasMes.size    * DIARIA;
+  const souIsentoDeDiaria = currentEntregadorKey && allEntregadores[currentEntregadorKey]?.semDiaria;
+  const diariaEfetiva = souIsentoDeDiaria ? 0 : DIARIA;
+  const diariaSemana = diasSemana.size * diariaEfetiva;
+  const diariaMes    = diasMes.size    * diariaEfetiva;
 
   const fmtV = v => 'R$ ' + v.toFixed(2).replace('.',',');
 
   // Dia selecionado
   document.getElementById('mp-ent-hoje').textContent   = entHoje;
   document.getElementById('mp-taxa-hoje').textContent  = fmtV(taxaHoje);
-  document.getElementById('mp-total-hoje').textContent = fmtV(taxaHoje + (entHoje > 0 ? DIARIA : 0));
+  document.getElementById('mp-total-hoje').textContent = fmtV(taxaHoje + (entHoje > 0 ? diariaEfetiva : 0));
 
   // Lista de entregas do dia
   const listaEl = document.getElementById('mp-lista-dia');
@@ -2163,7 +2169,7 @@ function renderEntregadores() {
   const isToday = filtroStr === todayStr;
   const lblDia = isToday ? 'Hoje' : (inputData.value ? new Date(inputData.value + 'T00:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}) : 'Hoje');
   el.innerHTML = list.map(([id,e]) => {
-    const diaria = e.valorFixoDiario || 0;
+    const diaria = e.semDiaria ? 0 : (e.valorFixoDiario || 0);
     const filtroDeliveries = Object.values(allPedidos).filter(p =>
       p.status==='entregue' && p.entregadorId===id && p.timestamp && new Date(p.timestamp).toDateString()===filtroStr
     );
@@ -2172,8 +2178,8 @@ function renderEntregadores() {
     const totalDia = taxaFiltro + diariaDia;
     return `<div class="entregador-card">
       <div class="entregador-info">
-        <h4>${e.nome} <span style="font-size:.72rem;background:${e.ativo?'#dcfce7':'#fee2e2'};color:${e.ativo?'#166534':'#991b1b'};padding:2px 8px;border-radius:10px;">${e.ativo?'Ativo':'Inativo'}</span></h4>
-        <p>${e.telefone||''} · Diária: ${fmt(diaria)} · Mensal: ${fmt(e.salarioMensal||0)}</p>
+        <h4>${e.nome} <span style="font-size:.72rem;background:${e.ativo?'#dcfce7':'#fee2e2'};color:${e.ativo?'#166534':'#991b1b'};padding:2px 8px;border-radius:10px;">${e.ativo?'Ativo':'Inativo'}</span>${e.semDiaria?' <span style="font-size:.72rem;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;">🏠 Sócio/Dono</span>':''}</h4>
+        <p>${e.telefone||''} · Diária: ${e.semDiaria ? 'Isento (sócio/dono)' : fmt(diaria)} · Mensal: ${fmt(e.salarioMensal||0)}</p>
       </div>
       <div class="entregador-stats">
         <div class="entregador-stat"><div class="val">${filtroDeliveries.length}</div><div class="lbl">Entregas ${lblDia}</div></div>
@@ -2199,6 +2205,7 @@ window.openEntregadorModal = function(id) {
   document.getElementById('entSalarioMensal').value = e?.salarioMensal || '';
   document.getElementById('entLogin').value = e?.login || '';
   document.getElementById('entAtivo').checked = e ? e.ativo !== false : true;
+  document.getElementById('entSemDiaria').checked = e?.semDiaria || false;
   document.getElementById('entId').value = id || '';
   openModal('modalEntregador');
 };
@@ -2211,7 +2218,8 @@ window.saveEntregador = async function() {
     valorFixoDiario: parseFloat(document.getElementById('entValor').value)||0,
     salarioMensal: parseFloat(document.getElementById('entSalarioMensal').value)||0,
     login: document.getElementById('entLogin').value.trim(),
-    ativo: document.getElementById('entAtivo').checked
+    ativo: document.getElementById('entAtivo').checked,
+    semDiaria: document.getElementById('entSemDiaria').checked
   };
   if (!data.nome) { showToast('Informe o nome.','error'); return; }
   const r = id ? ref(db,`entregadores/${id}`) : ref(db,'entregadores/' + Date.now());
@@ -2235,8 +2243,9 @@ window.showEntregadorRelatorio = function(id) {
   );
   const taxa = orders.reduce((s,p)=>s+(p.taxa||0),0);
   const salarioMensal = e.salarioMensal || 0;
-  const diaria = e.valorFixoDiario || 0;
-  alert(`📊 Relatório Mensal — ${e.nome}\n\nEntregas este mês: ${orders.length}\nTaxa coletada: ${fmt(taxa)}\n\nSalário mensal fixo: ${fmt(salarioMensal)}\nDiária (Fri/Sáb/Dom + feriados): ${fmt(diaria)}/dia`);
+  const diaria = e.semDiaria ? 0 : (e.valorFixoDiario || 0);
+  const diariaTxt = e.semDiaria ? 'Isento (sócio/dono) — não cobra diária' : `${fmt(diaria)}/dia`;
+  alert(`📊 Relatório Mensal — ${e.nome}\n\nEntregas este mês: ${orders.length}\nTaxa coletada: ${fmt(taxa)}\n\nSalário mensal fixo: ${fmt(salarioMensal)}\nDiária (Fri/Sáb/Dom + feriados): ${diariaTxt}`);
 };
 
 function populateEntregadorDropdowns() {}
@@ -2928,8 +2937,8 @@ function renderRelatorio() {
     const entregasP = list.filter(p => p.status === 'entregue' && p.entregadorId === id);
     const taxaP = entregasP.reduce((s, p) => s + (p.taxa || 0), 0);
     const diasTrab = new Set(entregasP.map(p => new Date(p.timestamp||0).toDateString())).size;
-    const diaria = diasTrab * (e.valorFixoDiario || 0);
-    return { nome: e.nome, entregas: entregasP.length, taxa: taxaP, diaria, dias: diasTrab, total: taxaP + diaria };
+    const diaria = e.semDiaria ? 0 : diasTrab * (e.valorFixoDiario || 0);
+    return { nome: e.nome, entregas: entregasP.length, taxa: taxaP, diaria, dias: diasTrab, total: taxaP + diaria, semDiaria: !!e.semDiaria };
   }).filter(e => e.entregas > 0);
   document.getElementById('relatContent').innerHTML = `
     <div class="card">
@@ -2946,7 +2955,7 @@ function renderRelatorio() {
       ${pagtoEntries.map(([pg,v])=>`<div class="dre-row"><span>${pg}</span><span>${v.count}x</span><span style="font-weight:700;">${fmt(v.total)}</span></div>`).join('')}`:''}
       ${entregadoresResumoTela.length?`<div class="dre-section-title">🛵 Entregadores — Custo de Entrega</div>
       <div class="dre-row" style="font-weight:700;font-size:12px;color:#888;"><span>Nome</span><span>Entregas</span><span>Taxas</span><span>Fixo (${entregadoresResumoTela[0]&&allEntregadores[Object.keys(allEntregadores)[0]]?'R$'+((Object.values(allEntregadores)[0]?.valorFixoDiario)||0)+'/dia':'R$/dia'})</span><span style="font-weight:800;color:#16a34a;">Total Pago</span></div>
-      ${entregadoresResumoTela.map(e=>`<div class="dre-row"><span>${e.nome}</span><span>${e.entregas}x</span><span>${fmt(e.taxa)}</span><span>${fmt(e.diaria)} (${e.dias}d)</span><span style="font-weight:800;color:#16a34a;">${fmt(e.total)}</span></div>`).join('')}`:''}
+      ${entregadoresResumoTela.map(e=>`<div class="dre-row"><span>${e.nome}${e.semDiaria?' 🏠':''}</span><span>${e.entregas}x</span><span>${fmt(e.taxa)}</span><span>${e.semDiaria?'Isento':fmt(e.diaria)+' ('+e.dias+'d)'}</span><span style="font-weight:800;color:#16a34a;">${fmt(e.total)}</span></div>`).join('')}`:''}
       ${topDishes.length?`<div class="dre-section-title">Top Pratos</div>
       ${topDishes.map(([n,c])=>`<div class="dre-row"><span>${n}</span><span>${c}x</span></div>`).join('')}`:''}
     </div>`;
@@ -2970,8 +2979,8 @@ window.printRelatorio = function() {
     const taxaP = entregasP.reduce((s, p) => s + (p.taxa || 0), 0);
     // Conta dias distintos com entregas → multiplica pelo fixo diário
     const diasTrab = new Set(entregasP.map(p => new Date(p.timestamp||0).toDateString())).size;
-    const diaria = diasTrab * (e.valorFixoDiario || 0);
-    return { nome: e.nome, entregas: entregasP.length, taxa: taxaP, diaria, dias: diasTrab, total: taxaP + diaria };
+    const diaria = e.semDiaria ? 0 : diasTrab * (e.valorFixoDiario || 0);
+    return { nome: e.nome, entregas: entregasP.length, taxa: taxaP, diaria, dias: diasTrab, total: taxaP + diaria, semDiaria: !!e.semDiaria };
   }).filter(e => e.entregas > 0);
 
   const totalEntregadores = entregadoresResumo.reduce((s,e)=>s+e.total, 0);
@@ -3013,7 +3022,7 @@ window.printRelatorio = function() {
     ${entregadoresResumo.map(e=>`
       <div class="rel-row"><span>${e.nome}</span><span>${e.entregas} entregas</span></div>
       <div class="rel-row"><span>Taxas de entrega</span><span>${fmt(e.taxa)}</span></div>
-      <div class="rel-row"><span>Fixo do dia${e.dias>1?' ('+e.dias+'d)':''}</span><span>${fmt(e.diaria)}</span></div>
+      <div class="rel-row"><span>Fixo do dia${e.dias>1?' ('+e.dias+'d)':''}</span><span>${e.semDiaria?'Isento (sócio/dono)':fmt(e.diaria)}</span></div>
       <div class="rel-row" style="border-bottom:2px solid #000;"><span>TOTAL PAGO</span><span>${fmt(e.total)}</span></div>
     `).join('')}
     <hr class="rel-divider">
