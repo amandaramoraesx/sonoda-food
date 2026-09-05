@@ -562,6 +562,7 @@ tr:hover td{background:#fafafa;}
         <button class="fin-mob-tab active" onclick="finMobTab('dre',this)">📊 DRE</button>
         <button class="fin-mob-tab" onclick="finMobTab('despesa',this)">➕ Despesa</button>
         <button class="fin-mob-tab" onclick="finMobTab('fiado',this)">💰 Fiado</button>
+        <button class="fin-mob-tab" onclick="finMobTab('rh',this)">🧑‍💼 RH</button>
       </div>
 
       <!-- SEÇÃO FIADO (desktop: sempre visível; mobile: aba) -->
@@ -573,6 +574,33 @@ tr:hover td{background:#fafafa;}
           </div>
           <div id="fiadosResumo" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;"></div>
           <div id="fiadosList"></div>
+        </div>
+      </div>
+
+      <!-- SEÇÃO RH — valores de meses anteriores ao sistema -->
+      <div class="fin-mob-section" id="finSec-rh">
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-title" style="margin-bottom:6px;">🧑‍💼 RH — Valores de Meses Anteriores</div>
+          <div style="font-size:.8rem;color:var(--gray);margin-bottom:14px;">Lance aqui o total gasto com RH (salários + diárias de entregadores) em meses que antecedem o uso do sistema. Esse valor entra automaticamente no DRE do mês/ano correspondente.</div>
+          <div class="form-row" style="grid-template-columns:1fr 1fr;">
+            <div class="form-group"><label>Mês</label><input type="month" id="rhMes" class="form-control"></div>
+            <div class="form-group"><label>Valor Total (R$)</label><input type="number" id="rhValor" class="form-control" placeholder="0,00" step="0.01"></div>
+          </div>
+          <div class="form-group"><label>Observação (opcional)</label><input type="text" id="rhObs" class="form-control" placeholder="Ex: Salários e diárias de entregadores"></div>
+          <input type="hidden" id="rhEditKey" value="">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-primary" style="flex:1;min-width:140px;" onclick="saveRhHistorico()">💾 Salvar</button>
+            <button class="btn btn-gray" id="rhCancelBtn" style="display:none;" onclick="cancelEditRh()">Cancelar Edição</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="margin-bottom:10px;">Histórico Lançado</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Mês</th><th>Valor</th><th>Observação</th><th>Ações</th></tr></thead>
+              <tbody id="rhHistoricoBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -1056,6 +1084,7 @@ let allEntregadores = {};
 let allFornecedores = {};
 let allEstoque = {};
 let allDespesas = {};
+let allRhHistorico = {};
 let allFiados = {};
 let manualItems = [];
 let editItems = [];
@@ -1169,7 +1198,7 @@ window.showTab = function(id) {
   if (tab) tab.classList.add('active');
   if (nav) nav.classList.add('active');
   if (id === 'dashboard') renderDashboard();
-  if (id === 'financeiro') { renderDespesas(); renderDRE(); renderFiados(); }
+  if (id === 'financeiro') { renderDespesas(); renderDRE(); renderFiados(); renderRhHistorico(); }
   if (id === 'relatorios') renderRelatorio();
   if (id === 'clientes') renderClientes();
   if (id === 'cardapio') renderCardapio();
@@ -1207,6 +1236,10 @@ function startListeners() {
   onValue(ref(db, 'financeiro/despesas'), snap => {
     allDespesas = snap.val() || {};
     if (document.getElementById('tab-financeiro').classList.contains('active')) { renderDespesas(); renderDRE(); }
+  });
+  onValue(ref(db, 'financeiro/rh'), snap => {
+    allRhHistorico = snap.val() || {};
+    if (document.getElementById('tab-financeiro').classList.contains('active')) { renderRhHistorico(); renderDRE(); }
   });
   onValue(ref(db, 'fiados'), snap => {
     allFiados = snap.val() || {};
@@ -1814,8 +1847,11 @@ function renderEntregas() {
   }
 
   // Somente pedidos de ENTREGA (nunca retirada)
+  // Se já foi assumido por outro entregador, não aparece aqui; pedidos ainda sem
+  // entregador (recém-liberados) continuam visíveis para qualquer um poder assumir.
   const prontos = Object.entries(allPedidos)
     .filter(([,p]) => ['pronto','entrega'].includes(p.status) && p.tipo === 'entrega')
+    .filter(([,p]) => !(currentEntregadorKey && p.entregadorId && p.entregadorId !== currentEntregadorKey))
     .sort((a,b) => (a[1].timestamp||0)-(b[1].timestamp||0));
   const filtroEntregas = Object.entries(allPedidos)
     .filter(([,p]) => {
@@ -2429,7 +2465,7 @@ window.saveDespesa = async function() {
 window.finMobTab = function(name, btn) {
   document.querySelectorAll('.fin-mob-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  ['dre','despesa','fiado'].forEach(s => {
+  ['dre','despesa','fiado','rh'].forEach(s => {
     document.getElementById('finSec-'+s)?.classList.remove('active');
   });
   document.getElementById('finSec-'+name)?.classList.add('active');
@@ -2473,6 +2509,7 @@ function getAnualYears() {
   const years = new Set([new Date().getFullYear()]);
   Object.values(allPedidos).forEach(p => { if (p.timestamp) years.add(new Date(p.timestamp).getFullYear()); });
   Object.values(allDespesas).forEach(d => { if (d.data) years.add(parseInt(d.data.slice(0,4), 10)); });
+  Object.keys(allRhHistorico).forEach(mes => { years.add(parseInt(mes.slice(0,4), 10)); });
   return [...years].sort((a,b) => b - a);
 }
 
@@ -2503,10 +2540,23 @@ function renderDRE() {
   const startStr = start.toISOString().slice(0,10);
   const endStr = end.toISOString().slice(0,10);
   const desp = Object.values(allDespesas).filter(d => d.data >= startStr && d.data <= endStr);
-  const totalDesp = desp.reduce((s,d)=>s+(d.valor||0),0);
-  const lucro = receitaLiq - totalDesp;
   const cats = {};
   desp.forEach(d => { cats[d.categoria]=(cats[d.categoria]||0)+(d.valor||0); });
+  let totalDesp = desp.reduce((s,d)=>s+(d.valor||0),0);
+
+  // Inclui valores de RH lançados manualmente para meses anteriores ao sistema
+  if (isYear) {
+    for (let m = 0; m < 12; m++) {
+      const key = anualYear + '-' + String(m+1).padStart(2,'0');
+      const rh = allRhHistorico[key]?.valor || 0;
+      if (rh > 0) { totalDesp += rh; cats['RH (Histórico)'] = (cats['RH (Histórico)']||0) + rh; }
+    }
+  } else {
+    const key = start.getFullYear() + '-' + String(start.getMonth()+1).padStart(2,'0');
+    const rh = allRhHistorico[key]?.valor || 0;
+    if (rh > 0) { totalDesp += rh; cats['RH (Histórico)'] = (cats['RH (Histórico)']||0) + rh; }
+  }
+  const lucro = receitaLiq - totalDesp;
   const periodLabel = isYear ? `Ano de ${anualYear}` : start.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
   const isMob = window.innerWidth < 768;
 
@@ -2516,7 +2566,8 @@ function renderDRE() {
     const monthNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
     const porMes = monthNames.map((label, m) => {
       const recM = pedidosPeriod.filter(p => new Date(p.timestamp).getMonth() === m).reduce((s,p)=>s+(p.total||0),0);
-      const despM = desp.filter(d => (parseInt(d.data.slice(5,7),10)-1) === m).reduce((s,d)=>s+(d.valor||0),0);
+      const rhM = allRhHistorico[anualYear+'-'+String(m+1).padStart(2,'0')]?.valor || 0;
+      const despM = desp.filter(d => (parseInt(d.data.slice(5,7),10)-1) === m).reduce((s,d)=>s+(d.valor||0),0) + rhM;
       return { label, receita: recM, despesa: despM };
     });
     anoExtraHtml = `
@@ -2595,6 +2646,67 @@ window.deleteDespesa = async function(id) {
   if (!confirm('Deletar despesa?')) return;
   await remove(ref(db,`financeiro/despesas/${id}`));
   showToast('Despesa removida.','warn');
+};
+
+// ── RH HISTÓRICO (valores manuais de meses anteriores ao sistema) ──
+function renderRhHistorico() {
+  const body = document.getElementById('rhHistoricoBody');
+  if (!body) return;
+  const entries = Object.entries(allRhHistorico).sort((a,b)=>b[0].localeCompare(a[0]));
+  if (!entries.length) { body.innerHTML = '<tr><td colspan="4"><div class="empty-state"><p>Nenhum valor histórico lançado.</p></div></td></tr>'; return; }
+  const monthNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  body.innerHTML = entries.map(([mes,r]) => {
+    const [ano,mm] = mes.split('-');
+    const label = `${monthNames[parseInt(mm,10)-1]}/${ano}`;
+    return `<tr>
+      <td>${label}</td>
+      <td style="font-weight:700;color:#991b1b;">${fmt(r.valor)}</td>
+      <td>${r.obs||'—'}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-gray btn-sm" onclick="editRhHistorico('${mes}')">✏️</button>
+        <button class="btn btn-gray btn-sm" onclick="deleteRhHistorico('${mes}')">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+window.saveRhHistorico = async function() {
+  const mes = document.getElementById('rhMes').value; // formato YYYY-MM
+  const valor = parseFloat(document.getElementById('rhValor').value);
+  const obs = document.getElementById('rhObs').value.trim();
+  if (!mes || !valor) { showToast('Preencha o mês e o valor.','error'); return; }
+  await update(ref(db,'financeiro/rh'), { [mes]: { valor, obs, updatedAt: Date.now() } });
+  document.getElementById('rhMes').value = '';
+  document.getElementById('rhValor').value = '';
+  document.getElementById('rhObs').value = '';
+  document.getElementById('rhEditKey').value = '';
+  document.getElementById('rhCancelBtn').style.display = 'none';
+  showToast('Valor de RH salvo!');
+};
+
+window.editRhHistorico = function(mes) {
+  const r = allRhHistorico[mes];
+  if (!r) return;
+  document.getElementById('rhMes').value = mes;
+  document.getElementById('rhValor').value = r.valor;
+  document.getElementById('rhObs').value = r.obs || '';
+  document.getElementById('rhEditKey').value = mes;
+  document.getElementById('rhCancelBtn').style.display = 'inline-block';
+  finMobTab('rh', document.querySelector('.fin-mob-tab[onclick*="rh"]'));
+};
+
+window.cancelEditRh = function() {
+  document.getElementById('rhMes').value = '';
+  document.getElementById('rhValor').value = '';
+  document.getElementById('rhObs').value = '';
+  document.getElementById('rhEditKey').value = '';
+  document.getElementById('rhCancelBtn').style.display = 'none';
+};
+
+window.deleteRhHistorico = async function(mes) {
+  if (!confirm('Remover o valor de RH lançado para este mês?')) return;
+  await remove(ref(db,`financeiro/rh/${mes}`));
+  showToast('Removido.','warn');
 };
 
 
