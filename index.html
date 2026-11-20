@@ -467,6 +467,11 @@ body.editing .card:hover{border-color:var(--red)}
   transition:var(--t);
 }
 body.editing .photo-upload-btn{display:block}
+/* adicionar / remover foto individual — só no modo edição */
+.foto-tools{position:absolute;bottom:8px;left:8px;z-index:5;display:none;gap:6px}
+body.editing .foto-tools{display:flex}
+.foto-tools button{background:rgba(0,0,0,.65);color:white;border:none;border-radius:8px;padding:5px 10px;font-size:.67rem;cursor:pointer;font-family:'DM Sans',sans-serif;backdrop-filter:blur(4px);transition:var(--t)}
+.foto-tools button:hover{background:var(--red)}
 .photo-upload-btn:hover{background:var(--red)}
 
 /* delete btn — only in edit mode */
@@ -2818,6 +2823,7 @@ function toggleEdit(){
   }
   editing=!editing;
   document.body.classList.toggle('editing',editing);
+  if(editing)_instalarFotoTools();
   const btn=document.getElementById('editBtn');
   btn.textContent=editing?'✅ Salvar':'✏️ Ativar Edição';
   btn.classList.toggle('on',editing);
@@ -3026,6 +3032,67 @@ function triggerUpload(cardId){
     }
   };inp.click();
 }
+// ── ADICIONAR / REMOVER FOTO INDIVIDUAL ─────────
+function _fotosAtuais(cardId){
+  return Array.from(document.querySelectorAll('#st-'+cardId+' .slide img')).map(function(i){return i.src;}).filter(Boolean);
+}
+function _comprimirFoto(file){
+  return new Promise(function(resolve,reject){
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      var img=new Image();
+      img.onload=function(){
+        var MAX=1000,w=img.width,h=img.height;
+        if(w>MAX||h>MAX){var r=Math.min(MAX/w,MAX/h);w=Math.round(w*r);h=Math.round(h*r);}
+        var c=document.createElement('canvas');c.width=w;c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        resolve(c.toDataURL('image/jpeg',0.8));
+      };
+      img.onerror=reject;img.src=ev.target.result;
+    };
+    reader.onerror=reject;reader.readAsDataURL(file);
+  });
+}
+function _aplicarFotos(cardId,fotos,ir){
+  window._carregarFotosNoCard(cardId,fotos);
+  if(typeof ir==='number')goSlide(cardId,ir);
+  if(typeof window._fbSalvarFotos==='function')window._fbSalvarFotos(cardId,fotos);
+}
+function adicionarFotos(cardId){
+  var inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.multiple=true;
+  inp.onchange=function(e){
+    var files=Array.from(e.target.files);if(!files.length)return;
+    toast('📤 Salvando fotos...');
+    Promise.all(files.map(_comprimirFoto)).then(function(novas){
+      var atuais=_fotosAtuais(cardId);
+      _aplicarFotos(cardId,atuais.concat(novas),atuais.length);
+      toast('✅ '+novas.length+(novas.length>1?' fotos adicionadas!':' foto adicionada!'));
+    }).catch(function(){toast('⚠️ Erro ao adicionar foto.');});
+  };
+  inp.click();
+}
+function removerFotoAtual(cardId){
+  var fotos=_fotosAtuais(cardId);
+  if(!fotos.length){toast('Este item não tem fotos.');return;}
+  if(fotos.length===1){toast('É a única foto. Use "Trocar fotos" para substituir.');return;}
+  if(!confirm('Remover a foto que está aparecendo?'))return;
+  var idx=(SL[cardId]&&SL[cardId].cur)||0;
+  fotos.splice(idx,1);
+  _aplicarFotos(cardId,fotos,Math.min(idx,fotos.length-1));
+  toast('🗑️ Foto removida');
+}
+function _instalarFotoTools(){
+  document.querySelectorAll('.card[data-id]').forEach(function(card){
+    var id=card.dataset.id, wrap=card.querySelector('.img-wrap');
+    if(!id||!wrap||wrap.querySelector('.foto-tools')||!document.getElementById('sw-'+id))return;
+    var t=document.createElement('div');t.className='foto-tools';
+    var add=document.createElement('button');add.type='button';add.textContent='➕ Foto';add.title='Adicionar fotos';add.onclick=function(){adicionarFotos(id);};
+    var del=document.createElement('button');del.type='button';del.textContent='🗑 Foto';del.title='Remover a foto que está aparecendo';del.onclick=function(){removerFotoAtual(id);};
+    t.appendChild(add);t.appendChild(del);wrap.appendChild(t);
+  });
+}
+_instalarFotoTools();
+
 // Attach upload buttons to existing cards
 document.querySelectorAll('.card').forEach(card=>{
   const id=card.dataset.id;if(!id)return;
