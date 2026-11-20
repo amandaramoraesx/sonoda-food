@@ -467,6 +467,7 @@ body.editing .card:hover{border-color:var(--red)}
   transition:var(--t);
 }
 body.editing .photo-upload-btn{display:block}
+.card-name[data-kanji]::after{content:" " attr(data-kanji);color:var(--red)}
 /* adicionar / remover foto individual — só no modo edição */
 .foto-tools{position:absolute;bottom:8px;left:8px;z-index:5;display:none;gap:6px}
 body.editing .foto-tools{display:flex}
@@ -1369,7 +1370,7 @@ body.editing .destaque-dia-edit-btn { display:inline-block; }
     <span class="card-drag-handle" title="Arrastar para reordenar">⠿</span><button class="del-btn" onclick="deleteCard(this)" title="Remover item">✕</button>
   </div>
   <div class="card-body">
-    <div class="card-name editable" contenteditable="false">Poke Natsu <span style="color:var(--red)">夏</span></div>
+    <div class="card-name editable" contenteditable="false" data-kanji="夏">Poke Natsu</div>
     <div class="card-desc editable" contenteditable="false">Salmão cru em cubos, manga, abacate, pepino sunomono e chips de batata-doce sobre arroz de sushi, com gergelim por cima. Acompanha molho cítrico de laranja.</div>
     <div class="card-foot"><span class="price"><span class="cur">R$</span><span class="price-num">45</span></span><button class="add-btn" id="ab-poke-natsu" onclick="initQtyPicker('poke-natsu','Poke Natsu',45)">+</button></div>
     <div class="badge-row edit-only" id="brow-poke-natsu"><button class="esgotado-toggle-btn" onclick="toggleEsgotado('card-poke-natsu')">Marcar Esgotado</button><span class="brow-label">Destaque:</span><button class="brow-btn" onclick="setBadge('poke-natsu','hot')">🔥 Mais Pedido</button><button class="brow-btn brow-active" onclick="setBadge('poke-natsu','new')">✨ Novidade</button><button class="brow-btn oferta-btn" id="oferta-btn-poke-natsu" onclick="toggleOferta('poke-natsu')">Oferta</button><button class="brow-btn brow-none" onclick="setBadge('poke-natsu','')">✕ Nenhum</button></div>
@@ -1381,7 +1382,7 @@ body.editing .destaque-dia-edit-btn { display:inline-block; }
     <span class="card-drag-handle" title="Arrastar para reordenar">⠿</span><button class="del-btn" onclick="deleteCard(this)" title="Remover item">✕</button>
   </div>
   <div class="card-body">
-    <div class="card-name editable" contenteditable="false">Poke Hono <span style="color:var(--red)">炎</span></div>
+    <div class="card-name editable" contenteditable="false" data-kanji="炎">Poke Hono</div>
     <div class="card-desc editable" contenteditable="false">Salmão maçaricado, cream cheese, tomate-cereja, pepino sunomono e crispy de alho-poró sobre arroz de sushi, com gergelim por cima. Acompanha molho agridoce de gengibre da casa.</div>
     <div class="card-foot"><span class="price"><span class="cur">R$</span><span class="price-num">45</span></span><button class="add-btn" id="ab-poke-hono" onclick="initQtyPicker('poke-hono','Poke Hono',45)">+</button></div>
     <div class="badge-row edit-only" id="brow-poke-hono"><button class="esgotado-toggle-btn" onclick="toggleEsgotado('card-poke-hono')">Marcar Esgotado</button><span class="brow-label">Destaque:</span><button class="brow-btn" onclick="setBadge('poke-hono','hot')">🔥 Mais Pedido</button><button class="brow-btn brow-active" onclick="setBadge('poke-hono','new')">✨ Novidade</button><button class="brow-btn oferta-btn" id="oferta-btn-poke-hono" onclick="toggleOferta('poke-hono')">Oferta</button><button class="brow-btn brow-none" onclick="setBadge('poke-hono','')">✕ Nenhum</button></div>
@@ -1393,7 +1394,7 @@ body.editing .destaque-dia-edit-btn { display:inline-block; }
     <span class="card-drag-handle" title="Arrastar para reordenar">⠿</span><button class="del-btn" onclick="deleteCard(this)" title="Remover item">✕</button>
   </div>
   <div class="card-body">
-    <div class="card-name editable" contenteditable="false">Poke Umi <span style="color:var(--red)">海</span></div>
+    <div class="card-name editable" contenteditable="false" data-kanji="海">Poke Umi</div>
     <div class="card-desc editable" contenteditable="false">Salmão filadélfia com cream cheese, pepino, cenoura, cebola roxa e chips de batata-doce sobre arroz de sushi, com gergelim por cima. Acompanha molho ponzu.</div>
     <div class="card-foot"><span class="price"><span class="cur">R$</span><span class="price-num">45</span></span><button class="add-btn" id="ab-poke-umi" onclick="initQtyPicker('poke-umi','Poke Umi',45)">+</button></div>
     <div class="badge-row edit-only" id="brow-poke-umi"><button class="esgotado-toggle-btn" onclick="toggleEsgotado('card-poke-umi')">Marcar Esgotado</button><span class="brow-label">Destaque:</span><button class="brow-btn" onclick="setBadge('poke-umi','hot')">🔥 Mais Pedido</button><button class="brow-btn brow-active" onclick="setBadge('poke-umi','new')">✨ Novidade</button><button class="brow-btn oferta-btn" id="oferta-btn-poke-umi" onclick="toggleOferta('poke-umi')">Oferta</button><button class="brow-btn brow-none" onclick="setBadge('poke-umi','')">✕ Nenhum</button></div>
