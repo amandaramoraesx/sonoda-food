@@ -351,6 +351,23 @@ tr:hover td{background:#fafafa;}
 .fin-mob-tab.active{background:#fff;color:var(--red);box-shadow:0 1px 4px rgba(0,0,0,.1);}
 .fin-mob-section{display:none;}
 .fin-mob-section.active{display:block;}
+.fin-mob-tabs{max-width:960px;}
+/* detalhe aberto dentro da tabela: fica sempre visível na largura da tela */
+.fin-detalhe{position:sticky;left:12px;width:min(920px,calc(100vw - 72px));}
+/* Calendário financeiro */
+.fincal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;}
+.fincal-sem{text-align:center;font-size:.7rem;font-weight:700;color:var(--gray);text-transform:uppercase;padding:4px 0;}
+.fincal-cell{position:relative;min-height:64px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;padding:5px 4px;display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;font-family:inherit;transition:.15s;}
+.fincal-cell:hover{border-color:var(--red);}
+.fincal-cell.vazio{border:none;background:transparent;cursor:default;}
+.fincal-cell.venda{background:#f0fdf4;border-color:#bbf7d0;}
+.fincal-cell.hoje .fincal-num{background:#111;color:#fff;border-radius:50%;}
+.fincal-cell.sel{border:2px solid var(--red);box-shadow:0 2px 8px rgba(192,57,43,.2);}
+.fincal-num{font-size:.8rem;font-weight:700;width:22px;height:22px;display:flex;align-items:center;justify-content:center;}
+.fincal-fat{font-size:.66rem;font-weight:700;color:#166534;white-space:nowrap;}
+.fincal-ped{font-size:.6rem;color:var(--gray);}
+.fincal-desp{position:absolute;top:2px;right:6px;color:var(--red);font-weight:900;font-size:.9rem;}
+@media(max-width:600px){.fincal-cell{min-height:54px;padding:3px 1px;}.fincal-fat{font-size:.56rem;}.fincal-ped{display:none;}}
 @media(max-width:767px){
   .fin-btn-row{display:grid;grid-template-columns:1fr auto;gap:8px;}
 }
@@ -563,7 +580,17 @@ tr:hover td{background:#fafafa;}
         <button class="fin-mob-tab" onclick="finMobTab('despesa',this)">➕ Despesa</button>
         <button class="fin-mob-tab" onclick="finMobTab('fiado',this)">💰 Fiado</button>
         <button class="fin-mob-tab" onclick="finMobTab('rh',this)">🧑‍💼 RH</button>
+        <button class="fin-mob-tab" onclick="finMobTab('cal',this)">📅 Calendário</button>
+        <button class="fin-mob-tab" onclick="finMobTab('clientes',this)">👥 Clientes</button>
+        <button class="fin-mob-tab" onclick="finMobTab('pratos',this)">🍽️ Pratos</button>
+        <button class="fin-mob-tab" onclick="finMobTab('exportar',this)">⬇️ Exportar</button>
       </div>
+
+      <!-- NOVAS SEÇÕES: calendário, relatório de clientes, pratos e exportação -->
+      <div class="fin-mob-section" id="finSec-cal"><div id="finCalendarioContent"></div></div>
+      <div class="fin-mob-section" id="finSec-clientes"><div id="finClientesContent"></div></div>
+      <div class="fin-mob-section" id="finSec-pratos"><div id="finPratosContent"></div></div>
+      <div class="fin-mob-section" id="finSec-exportar"><div id="finExportarContent"></div></div>
 
       <!-- SEÇÃO FIADO (desktop: sempre visível; mobile: aba) -->
       <div class="fin-mob-section" id="finSec-fiado">
@@ -1202,7 +1229,7 @@ window.showTab = function(id) {
   if (tab) tab.classList.add('active');
   if (nav) nav.classList.add('active');
   if (id === 'dashboard') renderDashboard();
-  if (id === 'financeiro') { renderDespesas(); renderDRE(); renderFiados(); renderRhHistorico(); }
+  if (id === 'financeiro') { renderDespesas(); renderDRE(); renderFiados(); renderRhHistorico(); renderFinExtras(true); }
   if (id === 'relatorios') renderRelatorio();
   if (id === 'clientes') renderClientes();
   if (id === 'cardapio') renderCardapio();
@@ -1239,7 +1266,7 @@ function startListeners() {
   });
   onValue(ref(db, 'financeiro/despesas'), snap => {
     allDespesas = snap.val() || {};
-    if (document.getElementById('tab-financeiro').classList.contains('active')) { renderDespesas(); renderDRE(); }
+    if (document.getElementById('tab-financeiro').classList.contains('active')) { renderDespesas(); renderDRE(); renderFinExtras(); }
   });
   onValue(ref(db, 'financeiro/rh'), snap => {
     allRhHistorico = snap.val() || {};
@@ -1312,7 +1339,7 @@ function renderAll() {
   renderPedidos();
   renderCozinha();
   if (currentRole === 'entregador') { renderEntregas(); renderMeuPainel(); }
-  if (document.getElementById('tab-financeiro')?.classList.contains('active')) { renderDRE(); }
+  if (document.getElementById('tab-financeiro')?.classList.contains('active')) { renderDRE(); renderFinExtras(); }
   updateNovoBadge();
 }
 
@@ -2480,11 +2507,539 @@ window.saveDespesa = async function() {
 window.finMobTab = function(name, btn) {
   document.querySelectorAll('.fin-mob-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  ['dre','despesa','fiado','rh'].forEach(s => {
+  ['dre','despesa','fiado','rh','cal','clientes','pratos','exportar'].forEach(s => {
     document.getElementById('finSec-'+s)?.classList.remove('active');
   });
   document.getElementById('finSec-'+name)?.classList.add('active');
+  renderFinExtras(true);
 };
+
+// ══════════════════════════════════════════════════════════════
+// ── FINANCEIRO: CALENDÁRIO, RELATÓRIO DE CLIENTES, PRATOS E CSV ──
+// ══════════════════════════════════════════════════════════════
+const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+let finCalMes = (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); })();
+let finCalDia = today();
+let finPer = { modo: 'mes', de: '', ate: '' };
+let finCliBusca = '', finCliOrdem = 'gasto', finCliAbertos = new Set();
+let finPratoBusca = '', finPratoOrdem = 'qtd', finPratosAbertos = new Set();
+
+function finEsc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function finDiaKey(ts) {
+  const d = new Date(ts || 0);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function finHora(ts) { return ts ? new Date(ts).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : ''; }
+function finDataBr(key) { const [y,m,d] = key.split('-'); return `${d}/${m}/${y}`; }
+function finValidos(lista) { return lista.filter(p => p.status !== 'cancelado'); }
+function finTodosPedidos() {
+  return Object.entries(allPedidos).map(([id, p]) => Object.assign({ _id: id }, p))
+    .sort((a,b) => (a.timestamp||0) - (b.timestamp||0));
+}
+function finNomeItem(i) { return String(i.name || i.nome || 'Item').trim(); }
+function finQtd(i) { return Number(i.qty || 1); }
+function finValorItem(i) { return Number(i.price || 0) * finQtd(i); }
+function finChaveCliente(p) {
+  const tel = String(p.telefone || '').replace(/\D/g, '');
+  if (tel.length >= 8) return 'tel:' + tel.slice(-11);
+  return 'nome:' + String(p.nome || 'Sem nome').trim().toLowerCase();
+}
+function finEntregador(p) { return (p.entregadorId && allEntregadores[p.entregadorId]?.nome) || ''; }
+
+// ── Período (Clientes / Pratos / Exportar) ──
+function finPeriodoRange() {
+  const now = new Date();
+  if (finPer.modo === 'tudo') return null;
+  if (finPer.modo === 'mes') return [new Date(now.getFullYear(), now.getMonth(), 1), new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59,999)];
+  if (finPer.modo === 'mesant') return [new Date(now.getFullYear(), now.getMonth()-1, 1), new Date(now.getFullYear(), now.getMonth(), 0, 23,59,59,999)];
+  if (finPer.modo === 'ano') return [new Date(now.getFullYear(), 0, 1), new Date(now.getFullYear(), 11, 31, 23,59,59,999)];
+  const de = finPer.de ? new Date(finPer.de + 'T00:00:00') : new Date(0);
+  const ate = finPer.ate ? new Date(finPer.ate + 'T23:59:59.999') : new Date(8.64e15);
+  return [de, ate];
+}
+function finPeriodoLabel() {
+  const now = new Date();
+  if (finPer.modo === 'tudo') return 'Todo o período';
+  if (finPer.modo === 'mes') return MESES_PT[now.getMonth()] + ' de ' + now.getFullYear();
+  if (finPer.modo === 'mesant') { const d = new Date(now.getFullYear(), now.getMonth()-1, 1); return MESES_PT[d.getMonth()] + ' de ' + d.getFullYear(); }
+  if (finPer.modo === 'ano') return 'Ano de ' + now.getFullYear();
+  return (finPer.de ? finDataBr(finPer.de) : 'início') + ' até ' + (finPer.ate ? finDataBr(finPer.ate) : 'hoje');
+}
+function finPedidosPeriodo(incluirCancelados) {
+  const r = finPeriodoRange();
+  let lista = finTodosPedidos();
+  if (r) lista = lista.filter(p => { const d = new Date(p.timestamp||0); return d >= r[0] && d <= r[1]; });
+  return incluirCancelados ? lista : finValidos(lista);
+}
+function finPeriodoHtml(alvo) {
+  const chip = (m, l) => `<button class="chip ${finPer.modo===m?'active':''}" onclick="finSetPeriodo('${m}','${alvo}')">${l}</button>`;
+  return `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+    ${chip('mes','Este Mês')}${chip('mesant','Mês Anterior')}${chip('ano','Este Ano')}${chip('tudo','Tudo')}
+    <span style="font-size:.78rem;color:var(--gray);font-weight:600;">ou de</span>
+    <input type="date" class="form-control" style="width:auto;font-size:.8rem;padding:6px 8px;" value="${finPer.modo==='custom'?finPer.de:''}" onchange="finSetDatas(this.value,null,'${alvo}')">
+    <span style="font-size:.78rem;color:var(--gray);font-weight:600;">até</span>
+    <input type="date" class="form-control" style="width:auto;font-size:.8rem;padding:6px 8px;" value="${finPer.modo==='custom'?finPer.ate:''}" onchange="finSetDatas(null,this.value,'${alvo}')">
+  </div>
+  <div style="font-size:.78rem;color:var(--gray);margin-bottom:10px;">Período: <strong>${finPeriodoLabel()}</strong></div>`;
+}
+window.finSetPeriodo = function(modo, alvo) { finPer.modo = modo; finRenderAlvo(alvo); };
+window.finSetDatas = function(de, ate, alvo) {
+  if (finPer.modo !== 'custom') { finPer.de = ''; finPer.ate = ''; }
+  finPer.modo = 'custom';
+  if (de !== null) finPer.de = de || '';
+  if (ate !== null) finPer.ate = ate || '';
+  finRenderAlvo(alvo);
+};
+function finRenderAlvo(alvo) {
+  if (alvo === 'clientes') renderFinClientes();
+  else if (alvo === 'pratos') renderFinPratos();
+  else if (alvo === 'exportar') renderFinExportar();
+}
+
+function finStat(cor, valor, label) {
+  return `<div class="stat-card ${cor}"><div class="stat-val">${valor}</div><div class="stat-lbl">${label}</div></div>`;
+}
+
+// ═════════════ 📅 CALENDÁRIO ═════════════
+window.finCalNav = function(delta) {
+  finCalMes = new Date(finCalMes.getFullYear(), finCalMes.getMonth() + delta, 1);
+  renderFinCalendario();
+};
+window.finCalHoje = function() {
+  const d = new Date(); finCalMes = new Date(d.getFullYear(), d.getMonth(), 1); finCalDia = today(); renderFinCalendario();
+};
+window.finCalSelecionar = function(key) { finCalDia = key; renderFinCalendario(); };
+
+function renderFinCalendario() {
+  const el = document.getElementById('finCalendarioContent'); if (!el) return;
+  const ano = finCalMes.getFullYear(), mes = finCalMes.getMonth();
+  const porDia = {};
+  finValidos(finTodosPedidos()).forEach(p => {
+    const k = finDiaKey(p.timestamp);
+    if (!porDia[k]) porDia[k] = { fat: 0, n: 0 };
+    porDia[k].fat += (p.total || 0); porDia[k].n++;
+  });
+  const despDia = {};
+  Object.values(allDespesas).forEach(d => { if (d.data) despDia[d.data] = (despDia[d.data]||0) + (d.valor||0); });
+  const prefixo = `${ano}-${String(mes+1).padStart(2,'0')}`;
+  const diasMes = Object.keys(porDia).filter(k => k.startsWith(prefixo));
+  const fatMes = diasMes.reduce((s,k) => s + porDia[k].fat, 0);
+  const pedMes = diasMes.reduce((s,k) => s + porDia[k].n, 0);
+  const melhor = diasMes.sort((a,b) => porDia[b].fat - porDia[a].fat)[0];
+  const hoje = today();
+  const primeiroDiaSemana = new Date(ano, mes, 1).getDay();
+  const totalDias = new Date(ano, mes+1, 0).getDate();
+  let cells = '';
+  for (let i = 0; i < primeiroDiaSemana; i++) cells += '<div class="fincal-cell vazio"></div>';
+  for (let d = 1; d <= totalDias; d++) {
+    const k = `${prefixo}-${String(d).padStart(2,'0')}`;
+    const info = porDia[k];
+    const cls = ['fincal-cell'];
+    if (k === finCalDia) cls.push('sel');
+    if (k === hoje) cls.push('hoje');
+    if (info) cls.push('venda');
+    cells += `<button type="button" class="${cls.join(' ')}" onclick="finCalSelecionar('${k}')">
+      <span class="fincal-num">${d}</span>
+      ${info ? `<span class="fincal-fat">${'R$' + Math.round(info.fat).toLocaleString('pt-BR')}</span><span class="fincal-ped">${info.n} ped.</span>` : ''}
+      ${despDia[k] ? '<span class="fincal-desp" title="Tem despesa">•</span>' : ''}
+    </button>`;
+  }
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button class="btn btn-gray btn-sm" onclick="finCalNav(-1)" aria-label="Mês anterior">‹</button>
+          <div class="card-title" style="margin:0;min-width:150px;text-align:center;">${MESES_PT[mes]} ${ano}</div>
+          <button class="btn btn-gray btn-sm" onclick="finCalNav(1)" aria-label="Próximo mês">›</button>
+        </div>
+        <button class="chip" onclick="finCalHoje()">Hoje</button>
+      </div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:.8rem;color:var(--gray);margin-bottom:10px;">
+        <span>Faturamento do mês: <strong style="color:#111">${fmt(fatMes)}</strong></span>
+        <span>Pedidos: <strong style="color:#111">${pedMes}</strong></span>
+        ${melhor ? `<span>Melhor dia: <strong style="color:#111">${finDataBr(melhor)} (${fmt(porDia[melhor].fat)})</strong></span>` : ''}
+      </div>
+      <div class="fincal-grid">
+        ${['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(s => `<div class="fincal-sem">${s}</div>`).join('')}
+        ${cells}
+      </div>
+      <div style="font-size:.72rem;color:var(--gray);margin-top:8px;">Toque em um dia para ver o financeiro completo. <span style="color:var(--red);font-weight:800;">•</span> = dia com despesa lançada.</div>
+    </div>
+    <div id="finCalDiaDetalhe">${finDiaDetalheHtml(finCalDia)}</div>`;
+}
+
+function finDiaDetalheHtml(key) {
+  const todos = finTodosPedidos().filter(p => finDiaKey(p.timestamp) === key);
+  const lista = finValidos(todos);
+  const cancelados = todos.length - lista.length;
+  const fat = lista.reduce((s,p) => s + (p.total||0), 0);
+  const taxas = lista.reduce((s,p) => s + (p.taxa||0), 0);
+  const desp = Object.values(allDespesas).filter(d => d.data === key);
+  const totDesp = desp.reduce((s,d) => s + (d.valor||0), 0);
+  const resultado = fat - taxas - totDesp;
+  const ticket = lista.length ? fat / lista.length : 0;
+  const pagtos = {};
+  lista.forEach(p => { const k = p.pagto || 'Não informado'; pagtos[k] = pagtos[k] || {n:0,v:0}; pagtos[k].n++; pagtos[k].v += (p.total||0); });
+  const tipos = { entrega: 0, retirada: 0 };
+  lista.forEach(p => { if (p.tipo === 'retirada') tipos.retirada++; else tipos.entrega++; });
+  const pratos = {};
+  lista.forEach(p => (p.items||[]).forEach(i => { const n = finNomeItem(i); pratos[n] = pratos[n] || {q:0,v:0}; pratos[n].q += finQtd(i); pratos[n].v += finValorItem(i); }));
+  const pratosOrd = Object.entries(pratos).sort((a,b) => b[1].q - a[1].q);
+  let dataLonga = new Date(key + 'T12:00:00').toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'long', year:'numeric'});
+  dataLonga = dataLonga.charAt(0).toUpperCase() + dataLonga.slice(1);
+  return `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+      <div class="card-title" style="margin:0;">📅 ${dataLonga}</div>
+      <button class="btn btn-gray btn-sm" onclick="finBaixarCsvDia('${key}')">⬇️ CSV deste dia</button>
+    </div>
+    <div class="stat-cards" style="margin-bottom:14px;">
+      ${finStat('green', fmt(fat), 'Faturamento')}
+      ${finStat('red', lista.length, 'Pedidos')}
+      ${finStat('blue', fmt(ticket), 'Ticket Médio')}
+      ${finStat('yellow', '- ' + fmt(totDesp), 'Despesas do Dia')}
+    </div>
+    <div class="dre-row"><span>Faturamento (bruto)</span><span>${fmt(fat)}</span></div>
+    <div class="dre-row" style="color:var(--gray)"><span>— Taxas de entrega</span><span>- ${fmt(taxas)}</span></div>
+    <div class="dre-row" style="color:var(--gray)"><span>— Despesas lançadas no dia</span><span>- ${fmt(totDesp)}</span></div>
+    <div class="dre-row profit ${resultado>=0?'pos':'neg'} total"><span>Resultado do dia</span><span>${resultado>=0?'+':''}${fmt(resultado)}</span></div>
+    <div style="font-size:.72rem;color:var(--gray);margin-top:4px;">${tipos.entrega} entrega(s) · ${tipos.retirada} retirada(s)${cancelados ? ` · ${cancelados} cancelado(s), fora das contas` : ''}</div>
+    ${Object.keys(pagtos).length ? `<div class="dre-section-title">💳 Por Forma de Pagamento</div>
+      ${Object.entries(pagtos).sort((a,b)=>b[1].v-a[1].v).map(([k,v]) => `<div class="dre-row"><span>${finEsc(k)}</span><span>${v.n}x · <strong>${fmt(v.v)}</strong></span></div>`).join('')}` : ''}
+    ${pratosOrd.length ? `<div class="dre-section-title">🍽️ Pratos Vendidos no Dia</div>
+      ${pratosOrd.map(([n,v]) => `<div class="dre-row"><span>${finEsc(n)}</span><span>${v.q}x · ${fmt(v.v)}</span></div>`).join('')}` : ''}
+    ${desp.length ? `<div class="dre-section-title">🧾 Despesas do Dia</div>
+      ${desp.map(d => `<div class="dre-row"><span>${finEsc(d.categoria||'')}${d.descricao ? ' — ' + finEsc(d.descricao) : ''}</span><span style="color:var(--red)">- ${fmt(d.valor)}</span></div>`).join('')}` : ''}
+    <div class="dre-section-title">🧾 Pedidos do Dia (${todos.length})</div>
+    ${todos.length ? `<div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>Hora</th><th>Cliente</th><th>Itens</th><th>Tipo</th><th>Pagamento</th><th>Total</th><th>Status</th></tr></thead>
+      <tbody>${todos.slice().reverse().map(p => `<tr style="${p.status==='cancelado'?'opacity:.5;text-decoration:line-through;':''}">
+        <td>${finEsc(p.num||'')}</td><td>${finHora(p.timestamp)}</td><td>${finEsc(p.nome||'—')}</td>
+        <td style="font-size:.78rem;">${(p.items||[]).map(i => finQtd(i) + 'x ' + finEsc(finNomeItem(i)) + (i.sabor ? ' (' + finEsc(i.sabor) + ')' : '')).join('<br>')}</td>
+        <td>${p.tipo==='retirada'?'Retirada':'Entrega'}</td><td>${finEsc(p.pagto||'—')}</td><td>${fmt(p.total)}</td><td>${badgeHtml(p.status)}</td></tr>`).join('')}
+      </tbody></table></div>` : '<div style="font-size:.85rem;color:var(--gray);padding:10px 0;">Nenhum pedido neste dia.</div>'}
+  </div>`;
+}
+
+// ═════════════ 👥 RELATÓRIO DE CLIENTES ═════════════
+function finAgruparClientes(lista) {
+  const mapa = {};
+  lista.forEach(p => {
+    const k = finChaveCliente(p);
+    if (!mapa[k]) mapa[k] = { chave: k, nome: '', telefone: '', bairro: '', pedidos: [], total: 0, itens: 0, pratos: {}, ultimo: 0, primeiro: Infinity };
+    const c = mapa[k];
+    c.pedidos.push(p);
+    c.total += (p.total || 0);
+    if ((p.timestamp||0) >= c.ultimo) { c.ultimo = p.timestamp||0; c.nome = p.nome || c.nome || 'Sem nome'; c.telefone = p.telefone || c.telefone; c.bairro = p.bairro || c.bairro; }
+    c.primeiro = Math.min(c.primeiro, p.timestamp || 0);
+    (p.items||[]).forEach(i => {
+      const n = finNomeItem(i);
+      c.pratos[n] = c.pratos[n] || { q: 0, v: 0 };
+      c.pratos[n].q += finQtd(i); c.pratos[n].v += finValorItem(i); c.itens += finQtd(i);
+    });
+  });
+  return Object.values(mapa);
+}
+window.finCliSetBusca = function(v) { finCliBusca = v; renderFinClientesLista(); };
+window.finCliSetOrdem = function(v) { finCliOrdem = v; renderFinClientesLista(); };
+window.finCliToggle = function(k) { if (finCliAbertos.has(k)) finCliAbertos.delete(k); else finCliAbertos.add(k); renderFinClientesLista(); };
+
+function renderFinClientes() {
+  const el = document.getElementById('finClientesContent'); if (!el) return;
+  el.innerHTML = `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+      <div class="card-title" style="margin:0;">👥 Relatório de Clientes</div>
+      <button class="btn btn-gray btn-sm" onclick="finBaixarCsvClientes()">⬇️ CSV de clientes</button>
+    </div>
+    ${finPeriodoHtml('clientes')}
+    <div id="finClientesResumo"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <div class="search-bar" style="flex:1;min-width:200px;margin:0;"><span class="search-icon">🔍</span><input type="text" placeholder="Buscar cliente por nome ou telefone..." value="${finEsc(finCliBusca)}" oninput="finCliSetBusca(this.value)"></div>
+      <select class="form-control" style="width:auto;" onchange="finCliSetOrdem(this.value)">
+        <option value="gasto" ${finCliOrdem==='gasto'?'selected':''}>Maior gasto</option>
+        <option value="pedidos" ${finCliOrdem==='pedidos'?'selected':''}>Mais pedidos</option>
+        <option value="recente" ${finCliOrdem==='recente'?'selected':''}>Pedido mais recente</option>
+        <option value="nome" ${finCliOrdem==='nome'?'selected':''}>Nome (A-Z)</option>
+      </select>
+    </div>
+    <div id="finClientesLista"></div>
+  </div>`;
+  renderFinClientesLista();
+}
+
+function renderFinClientesLista() {
+  const el = document.getElementById('finClientesLista'); if (!el) return;
+  const pedidos = finPedidosPeriodo(false);
+  let clientes = finAgruparClientes(pedidos);
+  const fat = pedidos.reduce((s,p) => s + (p.total||0), 0);
+  const resumo = document.getElementById('finClientesResumo');
+  if (resumo) resumo.innerHTML = `<div class="stat-cards" style="margin-bottom:12px;">
+    ${finStat('blue', clientes.length, 'Clientes')}
+    ${finStat('red', pedidos.length, 'Pedidos')}
+    ${finStat('green', fmt(fat), 'Faturamento')}
+    ${finStat('yellow', fmt(clientes.length ? fat / clientes.length : 0), 'Gasto Médio por Cliente')}
+  </div>`;
+  const q = finCliBusca.trim().toLowerCase(), qd = q.replace(/\D/g, '');
+  if (q) clientes = clientes.filter(c => (c.nome||'').toLowerCase().includes(q) || (qd && String(c.telefone||'').replace(/\D/g,'').includes(qd)));
+  const ord = { gasto: (a,b) => b.total - a.total, pedidos: (a,b) => b.pedidos.length - a.pedidos.length || b.total - a.total,
+    recente: (a,b) => b.ultimo - a.ultimo, nome: (a,b) => (a.nome||'').localeCompare(b.nome||'', 'pt-BR') };
+  clientes.sort(ord[finCliOrdem] || ord.gasto);
+  if (!clientes.length) { el.innerHTML = '<div class="empty-state"><div class="icon">👥</div><p>Nenhum cliente com pedidos neste período.</p></div>'; return; }
+  el.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr><th>Cliente</th><th>Pedidos</th><th>Total gasto</th><th>Ticket médio</th><th>Último pedido</th><th>Prato favorito</th></tr></thead>
+    <tbody>${clientes.map(c => {
+      const fav = Object.entries(c.pratos).sort((a,b) => b[1].q - a[1].q)[0];
+      const aberto = finCliAbertos.has(c.chave);
+      return `<tr style="cursor:pointer;" onclick="finCliToggle(this.dataset.k)" data-k="${finEsc(c.chave)}">
+        <td><strong>${aberto?'▾':'▸'} ${finEsc(c.nome)}</strong><div style="font-size:.72rem;color:var(--gray);">${finEsc(c.telefone||'sem telefone')}${c.bairro?' · '+finEsc(c.bairro):''}</div></td>
+        <td>${c.pedidos.length}</td><td style="font-weight:700;color:var(--red);">${fmt(c.total)}</td>
+        <td>${fmt(c.total / c.pedidos.length)}</td><td>${tsToDate(c.ultimo)}</td>
+        <td style="font-size:.8rem;">${fav ? finEsc(fav[0]) + ' (' + fav[1].q + 'x)' : '—'}</td></tr>
+        ${aberto ? `<tr><td colspan="6" style="background:#f9fafb;">${finClienteDetalheHtml(c)}</td></tr>` : ''}`;
+    }).join('')}</tbody></table></div>`;
+}
+
+function finClienteDetalheHtml(c) {
+  const pratos = Object.entries(c.pratos).sort((a,b) => b[1].q - a[1].q);
+  return `<div class="fin-detalhe" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;padding:6px 0;">
+    <div>
+      <div class="dre-section-title" style="margin-top:0;">🍽️ Pratos deste cliente</div>
+      ${pratos.map(([n,v]) => `<div class="dre-row"><span>${finEsc(n)}</span><span>${v.q}x · ${fmt(v.v)}</span></div>`).join('')}
+      <div style="font-size:.75rem;color:var(--gray);margin-top:6px;">${c.itens} itens no total · cliente desde ${tsToDate(c.primeiro)}</div>
+    </div>
+    <div>
+      <div class="dre-section-title" style="margin-top:0;">🧾 Pedidos (${c.pedidos.length})</div>
+      ${c.pedidos.slice().sort((a,b) => (b.timestamp||0) - (a.timestamp||0)).map(p => `<div style="padding:7px 10px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:6px;font-size:.8rem;">
+        <div style="display:flex;justify-content:space-between;gap:8px;"><strong>#${finEsc(p.num||'')} · ${fmtDate(p.timestamp)}</strong><strong>${fmt(p.total)}</strong></div>
+        <div style="color:var(--gray);">${(p.items||[]).map(i => finQtd(i) + 'x ' + finEsc(finNomeItem(i)) + (i.sabor ? ' (' + finEsc(i.sabor) + ')' : '')).join(', ')}</div>
+        <div style="color:var(--gray);font-size:.72rem;">${p.tipo==='retirada'?'Retirada':'Entrega'} · ${finEsc(p.pagto||'—')}</div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+// ═════════════ 🍽️ BUSCA POR PRATO ═════════════
+function finAgruparPratos(lista) {
+  const mapa = {};
+  lista.forEach(p => {
+    const itens = p.items || [];
+    const nomesNoPedido = new Set(itens.map(finNomeItem));
+    nomesNoPedido.forEach(n => {
+      if (!mapa[n]) mapa[n] = { nome: n, qtd: 0, valor: 0, pedidos: 0, soEste: 0, pedidosSo: [], clientes: {}, sabores: {}, listaPedidos: [] };
+      const m = mapa[n];
+      m.pedidos++;
+      m.listaPedidos.push(p);
+      if (nomesNoPedido.size === 1) { m.soEste++; m.pedidosSo.push(p); }
+    });
+    itens.forEach(i => {
+      const m = mapa[finNomeItem(i)];
+      m.qtd += finQtd(i); m.valor += finValorItem(i);
+      if (i.sabor) m.sabores[i.sabor] = (m.sabores[i.sabor] || 0) + finQtd(i);
+      const ck = finChaveCliente(p);
+      m.clientes[ck] = m.clientes[ck] || { nome: p.nome || 'Sem nome', q: 0 };
+      m.clientes[ck].q += finQtd(i);
+    });
+  });
+  return Object.values(mapa);
+}
+window.finPratoSetBusca = function(v) { finPratoBusca = v; renderFinPratosLista(); };
+window.finPratoSetOrdem = function(v) { finPratoOrdem = v; renderFinPratosLista(); };
+window.finPratoToggle = function(n) { if (finPratosAbertos.has(n)) finPratosAbertos.delete(n); else finPratosAbertos.add(n); renderFinPratosLista(); };
+
+function renderFinPratos() {
+  const el = document.getElementById('finPratosContent'); if (!el) return;
+  el.innerHTML = `<div class="card">
+    <div class="card-title" style="margin-bottom:10px;">🍽️ Vendas por Prato</div>
+    ${finPeriodoHtml('pratos')}
+    <div id="finPratosResumo"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <div class="search-bar" style="flex:1;min-width:200px;margin:0;"><span class="search-icon">🔍</span><input type="text" placeholder="Buscar prato (ex: poke, karaage)..." value="${finEsc(finPratoBusca)}" oninput="finPratoSetBusca(this.value)"></div>
+      <select class="form-control" style="width:auto;" onchange="finPratoSetOrdem(this.value)">
+        <option value="qtd" ${finPratoOrdem==='qtd'?'selected':''}>Mais vendidos</option>
+        <option value="valor" ${finPratoOrdem==='valor'?'selected':''}>Maior faturamento</option>
+        <option value="so" ${finPratoOrdem==='so'?'selected':''}>Mais pedidos só com ele</option>
+        <option value="nome" ${finPratoOrdem==='nome'?'selected':''}>Nome (A-Z)</option>
+      </select>
+    </div>
+    <div style="font-size:.74rem;color:var(--gray);margin-bottom:8px;">"Só com ele" = pedidos em que o cliente comprou apenas esse prato (sem nenhum outro item).</div>
+    <div id="finPratosLista"></div>
+  </div>`;
+  renderFinPratosLista();
+}
+
+function renderFinPratosLista() {
+  const el = document.getElementById('finPratosLista'); if (!el) return;
+  const pedidos = finPedidosPeriodo(false);
+  let pratos = finAgruparPratos(pedidos);
+  const q = finPratoBusca.trim().toLowerCase();
+  if (q) pratos = pratos.filter(p => p.nome.toLowerCase().includes(q));
+  const ord = { qtd: (a,b) => b.qtd - a.qtd, valor: (a,b) => b.valor - a.valor, so: (a,b) => b.soEste - a.soEste || b.qtd - a.qtd,
+    nome: (a,b) => a.nome.localeCompare(b.nome, 'pt-BR') };
+  pratos.sort(ord[finPratoOrdem] || ord.qtd);
+  const resumo = document.getElementById('finPratosResumo');
+  if (resumo) {
+    const qtdTot = pratos.reduce((s,p) => s + p.qtd, 0), valTot = pratos.reduce((s,p) => s + p.valor, 0);
+    const pedComAlgum = q ? pedidos.filter(p => (p.items||[]).some(i => finNomeItem(i).toLowerCase().includes(q))).length : pedidos.length;
+    resumo.innerHTML = `<div class="stat-cards" style="margin-bottom:12px;">
+      ${finStat('red', qtdTot, q ? 'Unidades vendidas (busca)' : 'Unidades vendidas')}
+      ${finStat('blue', pedComAlgum, q ? 'Pedidos com esses pratos' : 'Pedidos')}
+      ${finStat('green', fmt(valTot), q ? 'Faturamento desses pratos' : 'Faturamento em pratos')}
+      ${finStat('yellow', pratos.length, 'Pratos diferentes')}
+    </div>`;
+  }
+  if (!pratos.length) { el.innerHTML = '<div class="empty-state"><div class="icon">🍽️</div><p>Nenhum prato encontrado neste período.</p></div>'; return; }
+  el.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr><th>Prato</th><th>Qtd vendida</th><th>Pedidos com ele</th><th>Pedidos só com ele</th><th>Faturamento</th><th>Clientes</th></tr></thead>
+    <tbody>${pratos.map(p => {
+      const aberto = finPratosAbertos.has(p.nome);
+      return `<tr style="cursor:pointer;" data-n="${finEsc(p.nome)}" onclick="finPratoToggle(this.dataset.n)">
+        <td><strong>${aberto?'▾':'▸'} ${finEsc(p.nome)}</strong></td><td style="font-weight:700;">${p.qtd}</td><td>${p.pedidos}</td>
+        <td>${p.soEste}</td><td style="font-weight:700;color:var(--red);">${fmt(p.valor)}</td><td>${Object.keys(p.clientes).length}</td></tr>
+        ${aberto ? `<tr><td colspan="6" style="background:#f9fafb;">${finPratoDetalheHtml(p)}</td></tr>` : ''}`;
+    }).join('')}</tbody></table></div>`;
+}
+
+function finPratoDetalheHtml(p) {
+  const clientes = Object.values(p.clientes).sort((a,b) => b.q - a.q);
+  const sabores = Object.entries(p.sabores).sort((a,b) => b[1] - a[1]);
+  const so = p.pedidosSo.slice().sort((a,b) => (b.timestamp||0) - (a.timestamp||0));
+  return `<div class="fin-detalhe" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;padding:6px 0;">
+    <div>
+      <div class="dre-section-title" style="margin-top:0;">👥 Quem mais pede</div>
+      ${clientes.slice(0, 15).map(c => `<div class="dre-row"><span>${finEsc(c.nome)}</span><span>${c.q}x</span></div>`).join('')}
+      ${clientes.length > 15 ? `<div style="font-size:.74rem;color:var(--gray);">+ ${clientes.length - 15} outros clientes</div>` : ''}
+      ${sabores.length ? `<div class="dre-section-title">🎯 Sabores / opções</div>${sabores.map(([s,q]) => `<div class="dre-row"><span>${finEsc(s)}</span><span>${q}x</span></div>`).join('')}` : ''}
+    </div>
+    <div>
+      <div class="dre-section-title" style="margin-top:0;">🧾 Pedidos só com este prato (${so.length})</div>
+      ${so.length ? so.slice(0, 30).map(o => `<div class="dre-row" style="font-size:.8rem;"><span>#${finEsc(o.num||'')} · ${tsToDate(o.timestamp)} · ${finEsc(o.nome||'')}</span><span>${(o.items||[]).reduce((s,i)=>s+finQtd(i),0)}x · ${fmt(o.total)}</span></div>`).join('') : '<div style="font-size:.8rem;color:var(--gray);">Nenhum pedido só com este prato.</div>'}
+      ${so.length > 30 ? `<div style="font-size:.74rem;color:var(--gray);">+ ${so.length - 30} pedidos (veja tudo no CSV)</div>` : ''}
+    </div>
+  </div>`;
+}
+
+// ═════════════ ⬇️ EXPORTAR CSV ═════════════
+function finCsvCampo(v) {
+  if (v === null || v === undefined) v = '';
+  if (typeof v === 'number') v = Number.isInteger(v) ? String(v) : v.toFixed(2).replace('.', ',');
+  v = String(v).replace(/\r?\n/g, ' ');
+  return '"' + v.replace(/"/g, '""') + '"';
+}
+function finCsvMontar(cab, linhas) {
+  return '﻿' + [cab, ...linhas].map(l => l.map(finCsvCampo).join(';')).join('\r\n');
+}
+function finBaixarArquivo(nome, conteudo) {
+  const blob = new Blob([conteudo], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nome; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  showToast('⬇️ Arquivo ' + nome + ' baixado!');
+}
+function finNomeArquivo(base) {
+  const r = finPeriodoRange();
+  const sufixo = !r ? 'todos' : (r[0].getTime() <= 0 ? 'inicio' : finDiaKey(r[0])) + '_a_' + finDiaKey(Math.min(r[1].getTime(), Date.now()));
+  return `sonoda-${base}-${sufixo}.csv`;
+}
+function finCsvPedidos(lista) {
+  const cab = ['Nº Pedido','Data','Hora','Dia da semana','Status','Cliente','Telefone','Tipo','Endereço','Número','Bairro','Referência','Obs. retirada',
+    'Forma de pagamento','Troco para (R$)','Itens','Qtd. itens','Subtotal (R$)','Taxa entrega (R$)','Total (R$)','Entregador','Observação do pedido','ID do pedido'];
+  const linhas = lista.map(p => {
+    const d = new Date(p.timestamp || 0);
+    const itens = (p.items||[]).map(i => finQtd(i) + 'x ' + finNomeItem(i) + (i.sabor ? ' (' + i.sabor + ')' : '') + ' R$' + finValorItem(i).toFixed(2).replace('.',',') + (i.obs ? ' [obs: ' + i.obs + ']' : '')).join(' | ');
+    const subtotal = p.subtotal != null ? Number(p.subtotal) : (p.items||[]).reduce((s,i)=>s+finValorItem(i),0);
+    return [p.num||'', d.toLocaleDateString('pt-BR'), finHora(p.timestamp), d.toLocaleDateString('pt-BR',{weekday:'long'}),
+      statusLabel[p.status] || p.status || '', p.nome||'', p.telefone||'', p.tipo==='retirada'?'Retirada':'Entrega',
+      p.endereco||'', p.numero||'', p.bairro||'', p.refLocal||'', p.retiradaObs||'', p.pagto||'', Number(p.troco||0),
+      itens, (p.items||[]).reduce((s,i)=>s+finQtd(i),0), subtotal, Number(p.taxa||0), Number(p.total||0), finEntregador(p), p.obs||'', p._id||''];
+  });
+  return finCsvMontar(cab, linhas);
+}
+function finCsvItens(lista) {
+  const cab = ['Nº Pedido','Data','Hora','Status','Cliente','Telefone','Tipo','Forma de pagamento','Prato','Sabor/opção','Quantidade','Preço unitário (R$)','Valor total do item (R$)','Obs. do item','Total do pedido (R$)','ID do pedido'];
+  const linhas = [];
+  lista.forEach(p => (p.items||[]).forEach(i => {
+    const d = new Date(p.timestamp || 0);
+    linhas.push([p.num||'', d.toLocaleDateString('pt-BR'), finHora(p.timestamp), statusLabel[p.status] || p.status || '', p.nome||'', p.telefone||'',
+      p.tipo==='retirada'?'Retirada':'Entrega', p.pagto||'', finNomeItem(i), i.sabor||'', finQtd(i), Number(i.price||0), finValorItem(i), i.obs||'', Number(p.total||0), p._id||'']);
+  }));
+  return finCsvMontar(cab, linhas);
+}
+function finExportIncluiCancelados() { const cb = document.getElementById('finExpCancelados'); return cb ? cb.checked : true; }
+window.finBaixarCsvPedidos = function() {
+  const lista = finPedidosPeriodo(finExportIncluiCancelados());
+  if (!lista.length) { showToast('Nenhum pedido neste período.', 'error'); return; }
+  finBaixarArquivo(finNomeArquivo('pedidos'), finCsvPedidos(lista));
+};
+window.finBaixarCsvItens = function() {
+  const lista = finPedidosPeriodo(finExportIncluiCancelados());
+  if (!lista.length) { showToast('Nenhum pedido neste período.', 'error'); return; }
+  finBaixarArquivo(finNomeArquivo('itens'), finCsvItens(lista));
+};
+window.finBaixarCsvClientes = function() {
+  const clientes = finAgruparClientes(finPedidosPeriodo(false)).sort((a,b) => b.total - a.total);
+  if (!clientes.length) { showToast('Nenhum cliente neste período.', 'error'); return; }
+  const cab = ['Cliente','Telefone','Bairro','Pedidos','Total gasto (R$)','Ticket médio (R$)','Itens comprados','Primeiro pedido','Último pedido','Prato favorito','Pratos comprados'];
+  const linhas = clientes.map(c => {
+    const pr = Object.entries(c.pratos).sort((a,b) => b[1].q - a[1].q);
+    return [c.nome, c.telefone||'', c.bairro||'', c.pedidos.length, c.total, c.total / c.pedidos.length, c.itens,
+      tsToDate(c.primeiro), tsToDate(c.ultimo), pr[0] ? pr[0][0] : '', pr.map(([n,v]) => v.q + 'x ' + n).join(' | ')];
+  });
+  finBaixarArquivo(finNomeArquivo('clientes'), finCsvMontar(cab, linhas));
+};
+window.finBaixarCsvDia = function(key) {
+  const lista = finTodosPedidos().filter(p => finDiaKey(p.timestamp) === key);
+  if (!lista.length) { showToast('Nenhum pedido neste dia.', 'error'); return; }
+  finBaixarArquivo(`sonoda-pedidos-${key}.csv`, finCsvPedidos(lista));
+};
+
+function renderFinExportar() {
+  const el = document.getElementById('finExportarContent'); if (!el) return;
+  const incl = finExportIncluiCancelados();
+  const todos = finPedidosPeriodo(true), validos = finValidos(todos);
+  el.innerHTML = `<div class="card">
+    <div class="card-title" style="margin-bottom:6px;">⬇️ Baixar Pedidos (CSV)</div>
+    <div style="font-size:.8rem;color:var(--gray);margin-bottom:12px;">O arquivo CSV abre no Excel, Google Planilhas ou Numbers. Escolha o período e toque no botão para baixar.</div>
+    ${finPeriodoHtml('exportar')}
+    <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:.82rem;margin-bottom:12px;">
+      <span><strong>${todos.length}</strong> pedidos no período</span>
+      <span><strong>${todos.length - validos.length}</strong> cancelados</span>
+      <span>Faturamento (sem cancelados): <strong>${fmt(validos.reduce((s,p)=>s+(p.total||0),0))}</strong></span>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:.85rem;margin-bottom:14px;cursor:pointer;">
+      <input type="checkbox" id="finExpCancelados" ${incl?'checked':''} onchange="renderFinExportar()"> Incluir pedidos cancelados no arquivo (aparecem com status "Cancelado")
+    </label>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;">
+      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px;">
+        <div style="font-weight:700;margin-bottom:4px;">🧾 Pedidos completos</div>
+        <div style="font-size:.78rem;color:var(--gray);margin-bottom:10px;">1 linha por pedido: data, hora, status, cliente, telefone, endereço, pagamento, troco, itens, subtotal, taxa, total, entregador e observações.</div>
+        <button class="btn btn-primary" style="width:100%;" onclick="finBaixarCsvPedidos()">⬇️ Baixar pedidos</button>
+      </div>
+      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px;">
+        <div style="font-weight:700;margin-bottom:4px;">🍽️ Itens vendidos</div>
+        <div style="font-size:.78rem;color:var(--gray);margin-bottom:10px;">1 linha por prato de cada pedido, com sabor, quantidade e valor. Ideal para somar vendas por prato na planilha.</div>
+        <button class="btn btn-primary" style="width:100%;" onclick="finBaixarCsvItens()">⬇️ Baixar itens</button>
+      </div>
+      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px;">
+        <div style="font-weight:700;margin-bottom:4px;">👥 Resumo de clientes</div>
+        <div style="font-size:.78rem;color:var(--gray);margin-bottom:10px;">1 linha por cliente: pedidos, total gasto, ticket médio, prato favorito e todos os pratos comprados (sem cancelados).</div>
+        <button class="btn btn-primary" style="width:100%;" onclick="finBaixarCsvClientes()">⬇️ Baixar clientes</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// completo = desenha a aba inteira; senão só atualiza os números (mantém o que está digitado na busca)
+function renderFinExtras(completo) {
+  const ativo = id => document.getElementById('finSec-' + id)?.classList.contains('active');
+  if (ativo('cal')) renderFinCalendario();
+  if (ativo('clientes')) { if (completo || !document.getElementById('finClientesLista')) renderFinClientes(); else renderFinClientesLista(); }
+  if (ativo('pratos')) { if (completo || !document.getElementById('finPratosLista')) renderFinPratos(); else renderFinPratosLista(); }
+  if (ativo('exportar')) renderFinExportar();
+}
+window.renderFinExtras = renderFinExtras;
+window.renderFinExportar = renderFinExportar;
 
 window.setDrePeriod = function(period, el) {
   if (period === 'ano') {
